@@ -1,5 +1,6 @@
 function onClick(e) {  
-const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-settings-tab],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
+if (handleJalaliCalendarClick(e)) return;
+const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-calendar-open],[data-settings-tab],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
   if (d.closeOverlay && e.target !== n) return;
   if (d.view) { view = d.view; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   if (d.edit) { openTaskModal(d.edit); return }
@@ -14,6 +15,7 @@ const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[da
   if (d.energy) { data.checkins[selectedDate] = { ...data.checkins[selectedDate], energy: Number(d.energy) }; store(); render(); return }
   if (d.mood) { data.checkins[selectedDate] = { ...data.checkins[selectedDate], mood: d.mood }; store(); render(); return }
   if ('closeModal' in d || 'closeOverlay' in d) { closeModal(); return }
+  if (d.calendarOpen) { openJalaliCalendar(d.calendarOpen); return }
   if (d.theme) { data.theme = d.theme; store(); render(); return }
   if (d.settingsTab) { settingsTab = d.settingsTab; localStorage.setItem(SETTINGS_TAB_KEY, settingsTab); render(); return }
   if ('addEvent' in d) { openEventModal(); return }
@@ -35,7 +37,7 @@ document.addEventListener('click', onClick);
 document.addEventListener('change', e => { const n = e.target; if (n.id === 'rememberDevice') { onRememberDeviceToggle(n.checked); return; }  if (n.matches('[data-toggle]')) { const t = data.tasks.find(t => t.id === n.dataset.toggle); if (t) setDone(t, n.dataset.date, n.checked) } if (n.id === 'importFile') importBackup(n.files?.[0]); });
 document.addEventListener('input', e => { if (e.target.id === 'taskSearch') { const start = e.target.selectionStart; search = e.target.value; const list = document.getElementById('taskList'); if (list) { const tmp = document.createElement('div'); tmp.innerHTML = renderTasks(); list.innerHTML = tmp.querySelector('#taskList')?.innerHTML || ''; } } });
 document.getElementById('quickAdd').addEventListener('click', () => openTaskModal());
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (calendarState) closeJalaliCalendar(); else closeModal(); } });
 render();
 // Optional trusted-device restoration runs only on devices that opted in.
 initializeRememberedDevice();
