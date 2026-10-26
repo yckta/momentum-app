@@ -1,8 +1,8 @@
 // Cache the app shell for offline navigation; never cache GitHub API responses.
-const CACHE_NAME = 'momentum-v7-studio';
+const CACHE_NAME = 'momentum-v7-1-jalali';
 const APP_SHELL = [
   './', './index.html', './assets/core.js', './assets/ui.js',
-  './assets/sync.js', './assets/device.js', './assets/app.js', './assets/styles.css',
+  './assets/sync.js', './assets/device.js', './assets/calendar.js', './assets/app.js', './assets/styles.css',
   './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'
 ];
 
