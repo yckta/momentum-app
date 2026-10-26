@@ -1,0 +1,11 @@
+# Local secrets and private data: never commit these
+.env
+.env.*
+*.local
+*backup*.json
+*private*.json
+PRIVATE-*
+momentum.enc.json
+node_modules/
+.DS_Store
+Thumbs.db
