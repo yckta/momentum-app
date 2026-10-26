@@ -14,7 +14,9 @@
   --orange:#ffc17d;
   --red:#ff8fa3;
   --radius:20px;
-  --shadow:0 16px 50px #05091447
+  --shadow:0 16px 50px #05091447;
+  --font-desktop:'Segoe UI',Tahoma,sans-serif;
+  --font-mobile:Vazirmatn,Tahoma,sans-serif
 }
 
 body.light {
@@ -46,8 +48,8 @@ body {
   margin:0;
   background:var(--bg);
   color:var(--text);
-  font-family:Vazirmatn,Tahoma,sans-serif;
-  font-size:14px;
+  font-family:var(--font-desktop);
+  font-size:15px;
   line-height:1.65
 }
 
@@ -65,6 +67,7 @@ a {
 
 input,textarea,select {
   color:var(--text);
+  min-height:46px;
   background:var(--surface2);
   border:1px solid var(--stroke);
   outline:none;
@@ -97,7 +100,7 @@ select option {
 }
 
 textarea {
-  min-height:80px;
+  min-height:110px;
   resize:vertical
 }
 
@@ -151,7 +154,7 @@ small {
 }
 
 .brand h1 {
-  font:800 22px/1.1 Vazirmatn,Tahoma;
+  font:800 22px/1.1 var(--font-desktop);
   margin:0;
   letter-spacing:-.5px
 }
@@ -243,7 +246,7 @@ small {
 }
 
 .heading {
-  font-size:27px;
+  font-size:28px;
   font-weight:800;
   letter-spacing:-.7px;
   margin:0
@@ -259,7 +262,8 @@ small {
 .btn {
   background:var(--surface2);
   border:1px solid var(--stroke);
-  border-radius:12px;
+  border-radius:14px;
+  min-height:44px;
   padding:10px 16px;
   color:var(--text);
   font-weight:600;
@@ -298,8 +302,8 @@ small {
 .card {
   background:var(--surface);
   border:1px solid var(--stroke);
-  border-radius:var(--radius);
-  padding:20px;
+  border-radius:24px;
+  padding:22px;
   box-shadow:0 6px 24px #00000008
 }
 
@@ -436,8 +440,10 @@ small {
 }
 
 .tag {
-  display:inline-block;
-  padding:3px 9px;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:5px 10px;
   background:var(--surface2);
   color:var(--muted);
   border-radius:20px;
@@ -512,8 +518,8 @@ small {
   background:transparent;
   color:var(--muted);
   font-size:13px;
-  padding:5px 7px;
-  border-radius:7px
+  padding:6px 8px;
+  border-radius:9px
 }
 
 .tiny:hover {
@@ -928,7 +934,224 @@ small {
   margin-top:25px
 }
 
+
+.settings-shell {
+  display:grid;
+  gap:18px
+}
+
+.settings-hero {
+  display:grid;
+  grid-template-columns:minmax(0,1.25fr) minmax(280px,.95fr);
+  gap:16px;
+  align-items:start;
+  background:linear-gradient(135deg,var(--surface),var(--surface2));
+  border-color:color-mix(in srgb, var(--purple) 20%, var(--stroke))
+}
+
+.settings-hero h2 {
+  margin:4px 0 8px;
+  font-size:24px
+}
+
+.settings-hero p {
+  margin:0;
+  color:var(--muted)
+}
+
+.settings-overview {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px
+}
+
+.overview-pill,.mini-card,.subcard {
+  background:var(--surface2);
+  border:1px solid var(--stroke);
+  border-radius:18px;
+  padding:14px 15px
+}
+
+.overview-pill span,.mini-label {
+  display:block;
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:6px
+}
+
+.overview-pill b,.mini-card b {
+  font-size:15px
+}
+
+.settings-layout {
+  display:grid;
+  grid-template-columns:280px minmax(0,1fr);
+  gap:18px;
+  align-items:start
+}
+
+.settings-sidebar-card {
+  position:sticky;
+  top:24px;
+  display:grid;
+  gap:14px
+}
+
+.settings-sidebar-head {
+  display:grid;
+  gap:4px
+}
+
+.settings-sidebar-head small {
+  color:var(--muted)
+}
+
+.settings-nav-grid {
+  display:grid;
+  gap:10px
+}
+
+.settings-tab-card {
+  border:1px solid var(--stroke);
+  background:var(--surface2);
+  color:var(--text);
+  border-radius:18px;
+  padding:14px;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  text-align:right
+}
+
+.settings-tab-card:hover {
+  border-color:color-mix(in srgb, var(--purple) 50%, var(--stroke));
+  transform:translateY(-1px)
+}
+
+.settings-tab-card.active {
+  background:linear-gradient(135deg,var(--purpleSoft),var(--surface));
+  border-color:color-mix(in srgb, var(--purple) 65%, var(--stroke))
+}
+
+.settings-tab-icon {
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  background:var(--surface3);
+  font-weight:800
+}
+
+.settings-tab-copy {
+  min-width:0;
+  display:grid;
+  gap:3px
+}
+
+.settings-tab-copy b {
+  font-size:14px
+}
+
+.settings-tab-copy small {
+  color:var(--muted);
+  line-height:1.6
+}
+
+.settings-content-area,.settings-panel,.setting-stack {
+  display:grid;
+  gap:16px
+}
+
+.setting-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap
+}
+
+.setting-row.boxed,.trusted-device-box,.warning-box,.danger-box {
+  background:var(--surface2);
+  border:1px solid var(--stroke);
+  border-radius:18px;
+  padding:16px
+}
+
+.settings-duo,.sync-summary {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px
+}
+
+.mini-card.emphasis {
+  background:linear-gradient(140deg,var(--purpleSoft),var(--surface2));
+  border-color:color-mix(in srgb, var(--purple) 45%, var(--stroke))
+}
+
+.sync-form-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px
+}
+
+.check-card {
+  display:grid;
+  grid-template-columns:24px minmax(0,1fr);
+  gap:12px;
+  align-items:start;
+  margin:0;
+  cursor:pointer
+}
+
+.check-card b {
+  display:block;
+  color:var(--text);
+  margin-bottom:4px
+}
+
+.check-card small {
+  color:var(--muted);
+  line-height:1.8
+}
+
+.settings-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px
+}
+
+.settings-actions .btn {
+  flex:1 1 220px
+}
+
+.compact-tabs button {
+  min-width:92px
+}
+
+.sync-summary .hint,#cloudMessage {
+  line-height:1.8
+}
+
+.compact-start {
+  align-items:flex-start
+}
+
+.notice.neutral {
+  border-radius:16px
+}
+
 @media(max-width:1100px) {
+  .settings-layout {
+    grid-template-columns:1fr
+  }
+  .settings-sidebar-card {
+    position:static
+  }
+  .settings-hero {
+    grid-template-columns:1fr
+  }
   .main {
     padding:24px 22px 100px
   }
@@ -947,6 +1170,12 @@ small {
 }
 
 @media(max-width:760px) {
+  body {
+    font-family:var(--font-mobile)
+  }
+  .brand h1,.heading {
+    font-family:var(--font-mobile)
+  }
   .sidebar {
     display:none
   }
@@ -982,6 +1211,19 @@ small {
   }
   .heading {
     font-size:21px
+  }
+  .settings-overview,.settings-duo,.sync-summary,.sync-form-grid {
+    grid-template-columns:1fr
+  }
+  .settings-tab-card {
+    grid-template-columns:36px minmax(0,1fr)
+  }
+  .settings-tab-card .tag {
+    grid-column:2
+    justify-self:start
+  }
+  .settings-actions .btn {
+    flex:1 1 100%
   }
   .intro {
     padding:20px

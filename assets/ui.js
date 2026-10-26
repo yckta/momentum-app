@@ -22,7 +22,155 @@ const total = data.tasks.length, open = data.tasks.filter(t => t.type === 'once'
 }
 function weekDates() { return Array.from({ length: 7 }, (_, i) => addDays(shiftWeek(selectedDate), i)) }
 function renderProgress() { const dates = weekDates(), weekly = dates.reduce((a, d) => a + countDone(d), 0), total = dates.reduce((a, d) => a + dailyTasks(d).length, 0), moods = dates.filter(d => data.checkins[d]?.energy), avg = moods.length ? (moods.reduce((a, d) => a + data.checkins[d].energy, 0) / moods.length).toFixed(1) : '—'; return `<div class="grid3"><div class="card"><div class="eyebrow">XP کل</div><h2 style="font-size:31px;margin:8px 0">${fnum(xpTotal())}</h2><span class="tag purple">Level ${fnum(level())}</span></div><div class="card"><div class="eyebrow">تکمیل این هفته</div><h2 style="font-size:31px;margin:8px 0">${fnum(weekly)} / ${fnum(total)}</h2><span class="tag">${fnum(total ? Math.round(100 * weekly / total) : 0)}٪ از برنامه</span></div><div class="card"><div class="eyebrow">میانگین انرژی ثبت‌شده</div><h2 style="font-size:31px;margin:8px 0">${fnum(avg)} / ۵</h2><span class="tag teal">${fnum(moods.length)} روز ثبت</span></div></div><div class="progress-detail" style="margin-top:17px"><div class="card"><div class="section-title"><h2>روند هفتگی تسک‌ها</h2><span class="tag">${shortDate(dates[0])} – ${shortDate(dates[6])}</span></div>${renderMiniWeekBars()}<div class="hint">درصدها بر اساس تسک‌های برنامه‌ریزی‌شدهٔ هر روز است؛ نه کل زمان مفید یا کیفیت مطالعه.</div></div><div class="card"><div class="section-title"><h2>سنجش انرژی</h2></div>${dates.map(d => `<div class="barline"><span class="dayname">${dayName(d)}</span><div class="track"><div class="fill" style="width:${(data.checkins[d]?.energy || 0) * 20}%;background:linear-gradient(90deg,#48b9ad,#8ee4d0)"></div></div><span class="count">${data.checkins[d]?.energy ? fnum(data.checkins[d].energy) + '/۵' : '—'}</span></div>`).join('')}<div class="hint">این نمودار به تشخیص روزهای پُرانرژی و روزهایی که به استراحت نیاز داری کمک می‌کند.</div></div></div><div class="card" style="margin-top:17px"><h2 style="font-size:16px;margin:0 0 12px">پاداش‌های ساده و دوستانه</h2><div class="hint">هر ۲۰۰ XP یک لِول؛ تیک‌زدن تسک‌های انجام‌شده XP می‌دهد. از دست‌دادن یک روز جریمه ندارد.</div><div class="meter" style="height:13px"><span style="width:${xpIntoLevel() / 2}%"></span></div><div class="rowline"><b>Level ${fnum(level())}</b><span class="muted">${fnum(xpIntoLevel())} / ۲۰۰ XP</span><b>Level ${fnum(level() + 1)}</b></div></div>` }
-function renderSettings() { const isCloud = !!cloudReady; return `<div class="settings-grid"><div class="card"><div class="section-title"><h2>ظاهر برنامه</h2></div><div class="rowline"><span>پوستهٔ نمایش</span><div class="tabs"><button data-theme="dark" class="${data.theme === 'dark' ? 'active' : ''}">تیره</button><button data-theme="light" class="${data.theme === 'light' ? 'active' : ''}">روشن</button></div></div></div><div class="card"><div class="section-title"><h2>پشتیبان و انتقال داده</h2></div><p class="muted">تمام تسک‌ها، پیشرفت‌ها، برنامهٔ هفتگی و حال‌وهوای ثبت‌شده را در فایل JSON نگه‌داری کن. حتی با فعال بودن همگام‌سازی، هر چند وقت یک‌بار خروجی بگیر.</p><div class="actions"><button class="btn" data-export>↓ خروجی پشتیبان</button><button class="btn" data-import>↑ بازیابی فایل</button><input style="display:none" type="file" id="importFile" accept=".json,application/json"></div><div class="notice neutral">داده‌های محلی با بستن عادی مرورگر پاک نمی‌شوند، اما پاک‌کردن حافظهٔ سایت می‌تواند آن‌ها را حذف کند. داشتن پشتیبان مهم است.</div></div><div class="card"><div class="section-title"><h2>همگام‌سازی خصوصی با GitHub</h2><span class="tag ${isCloud && cloudSyncOk ? 'teal' : 'orange'}">${isCloud && cloudSyncOk ? 'همگام است' : isCloud ? 'متصل؛ در انتظار همگام‌سازی' : syncConf.tokenBox ? 'قفل شده' : 'نیاز به تنظیم'}</span></div><p class="muted">بدون Supabase! داده‌های خصوصی، رمزگذاری‌شده و فقط در یک مخزن GitHub از نوع <b>Private</b> ذخیره می‌شوند. کد عمومی سایت باید در مخزن جداگانه باقی بماند.</p><div class="form-grid"><div class="form-group"><label>نام کاربری GitHub</label><input id="gitOwner" dir="ltr" placeholder="username" autocomplete="off" value="${htmlEscape(syncConf.owner || 'yckta')}"></div><div class="form-group"><label>نام مخزن خصوصی داده</label><input id="gitRepo" dir="ltr" placeholder="momentum-data" autocomplete="off" value="${htmlEscape(syncConf.repo || 'momentum-data')}"></div><div class="form-group full"><label>Fine-grained PAT (فقط مخزن داده، Contents: Read and write)</label><input id="gitToken" type="password" dir="ltr" autocomplete="off" placeholder="${syncConf.tokenBox ? 'توکن قبلاً رمزگذاری و ذخیره شده؛ نیازی به ورود دوباره نیست' : 'توکن GitHub را اینجا وارد کن'}"><div class="hint">توکن را در چت، GitHub Repository یا فایل عمومی قرار نده. برنامه فقط نسخهٔ رمزگذاری‌شدهٔ آن را روی همین دستگاه ذخیره می‌کند.</div></div><div class="form-group full"><label>عبارت عبور اختصاصی رمزگذاری (حداقل ۱۰ نویسه)</label><input id="gitPass" type="password" dir="ltr" autocomplete="off" placeholder="این عبارت با رمز حساب GitHub متفاوت باشد"><div class="hint">برای بازکردن اتصال در هر دستگاه لازم است. آن را امن نگه دار؛ در صورت گم‌کردنش، بازیابی داده‌های رمزگذاری‌شده ممکن نیست.</div></div><div class="form-group full"><label class="rowline" style="justify-content:flex-start;gap:10px;cursor:pointer"><input type="checkbox" id="rememberDevice" ${syncConf.rememberDevice ? 'checked' : ''} style="width:18px;height:18px"><b>مرا در این دستگاه به خاطر بسپار (۳۰ روز)</b></label><div class="hint">اگر اتصال باز باشد، با تغییر تیک این گزینه همان لحظه ذخیره می‌شود. اگر اتصال قفل است، بعد از انتخاب گزینه، عبارت عبور را وارد کن و «باز کردن اتصال» را بزن. فقط برای آیفون و لپ‌تاپ شخصی دارای قفل صفحه. برای ورود خودکار، یک کلید غیرقابل‌استخراج و عبارت عبور محافظت‌شده در IndexedDB این دستگاه نگهداری می‌شود. این روش در برابر کد مخربِ اجراشده در سایت یا مرورگر آلوده محافظت کامل ندارد؛ داده‌های محلی نیز رمزگذاری نشده‌اند.</div></div></div>${syncConf.autoUnlockError ? `<div class="notice neutral" role="status">⚠ ورود خودکار در بازشدن قبلی موفق نشد: ${htmlEscape(syncConf.autoUnlockError)}. عبارت عبور را وارد کن و اتصال را باز کن.</div>` : syncConf.rememberDevice ? '<div class="notice neutral" role="status">✓ ورود خودکار روی این دستگاه فعال است؛ تا پایان دورهٔ ۳۰روزه.</div>' : ''}<div class="actions" style="margin-top:15px"><button class="btn btn-primary" data-cloud-save>ذخیرهٔ امن اتصال و همگام‌سازی</button><button class="btn" data-cloud-login ${!syncConf.tokenBox ? 'disabled' : ''}>باز کردن اتصال</button><button class="btn" data-cloud-pull ${!isCloud ? 'disabled' : ''}>همگام‌سازی الآن</button><button class="btn" data-cloud-logout ${!isCloud ? 'disabled' : ''}>قفل‌کردن اتصال و حذف ورود خودکار</button><button class="btn" data-forget-device ${!syncConf.rememberDevice ? 'disabled' : ''}>خاموش‌کردن ورود خودکار</button></div><p class="hint" id="cloudMessage">${htmlEscape(cloudMessage || (syncConf.tokenBox ? 'اتصال ذخیره شده؛ عبارت عبور را بنویس و «باز کردن اتصال» را بزن.' : 'اول یک مخزن Private با فایل README بساز و توکن محدود به همان مخزن را وارد کن.'))}</p><div class="notice neutral">اگر دو دستگاه هم‌زمان تغییر داده باشند، برنامه از بازنویسی خودکار جلوگیری می‌کند؛ بعد از گرفتن پشتیبان، از دکمه‌های حل تعارض استفاده کن. برای دریافت تغییرات گوشی، اپ را دوباره باز کن یا «همگام‌سازی الآن» بزن.</div><div class="actions" style="margin-top:10px"><button class="btn" data-cloud-download ${!isCloud ? 'disabled' : ''}>جایگزینی این دستگاه از ابر</button><button class="btn btn-danger" data-cloud-upload ${!isCloud ? 'disabled' : ''}>جایگزینی ابر از این دستگاه</button></div></div><div class="card"><div class="section-title"><h2>سایر تنظیمات</h2></div><div class="rowline"><div><b>اعلان ددلاین</b><div class="hint">هشدار داخل برنامه فعال است؛ اعلان پس‌زمینه هنوز فعال نیست.</div></div><span class="tag orange">نسخهٔ آینده</span></div><div class="divider"></div><div class="rowline"><div><b>شروع دوباره</b><div class="hint">همهٔ تسک‌های محلی را حذف می‌کند؛ اگر متصل باشی ممکن است روی ابر هم جایگزین شوند.</div></div><button class="btn btn-danger" data-reset>بازنشانی</button></div></div></div>` }
+function settingsTabCard(id, icon, title, desc, extra = '') {
+  return `<button class="settings-tab-card ${settingsTab === id ? 'active' : ''}" data-settings-tab="${id}"><span class="settings-tab-icon">${icon}</span><span class="settings-tab-copy"><b>${title}</b><small>${desc}</small></span>${extra}</button>`
+}
+function renderSettings() {
+  const isCloud = !!cloudReady;
+  const syncStatusText = isCloud && cloudSyncOk ? 'همگام است' : isCloud ? 'متصل؛ در انتظار همگام‌سازی' : syncConf.tokenBox ? 'قفل شده' : 'نیاز به تنظیم';
+  const syncStatusTone = isCloud && cloudSyncOk ? 'teal' : isCloud ? 'purple' : syncConf.tokenBox ? 'orange' : 'red';
+  const syncMessage = htmlEscape(cloudMessage || (syncConf.tokenBox ? 'اتصال ذخیره شده؛ عبارت عبور را بنویس و «باز کردن اتصال» را بزن.' : 'اول یک مخزن Private با فایل README بساز و توکن محدود به همان مخزن را وارد کن.'));
+  const autoUnlockBox = syncConf.autoUnlockError
+    ? `<div class="notice neutral" role="status">⚠ ورود خودکار در بازشدن قبلی موفق نشد: ${htmlEscape(syncConf.autoUnlockError)}. یک بار اتصال را دستی باز کن.</div>`
+    : syncConf.rememberDevice
+      ? `<div class="notice neutral" role="status">✓ ورود خودکار روی این دستگاه فعال است؛ تا پایان دورهٔ ۳۰روزه.</div>`
+      : '';
+
+  const sections = {
+    appearance: `
+      <div class="card settings-panel">
+        <div class="section-title"><div><h2>ظاهر و تجربهٔ کاربری</h2><div class="hint">ظاهر برنامه را ساده‌تر و مناسب دستگاهت نگه دار.</div></div></div>
+        <div class="setting-stack">
+          <div class="setting-row boxed">
+            <div>
+              <b>پوستهٔ نمایش</b>
+              <div class="hint">می‌توانی بین تم تیره و روشن جابه‌جا شوی. تغییر به‌صورت محلی ذخیره می‌شود.</div>
+            </div>
+            <div class="tabs compact-tabs">
+              <button data-theme="dark" class="${data.theme === 'dark' ? 'active' : ''}">تیره</button>
+              <button data-theme="light" class="${data.theme === 'light' ? 'active' : ''}">روشن</button>
+            </div>
+          </div>
+          <div class="settings-duo">
+            <div class="mini-card">
+              <span class="mini-label">فونت روی لپ‌تاپ</span>
+              <b>سیستم‌فونت ساده‌تر</b>
+              <div class="hint">برای دسکتاپ از فونتی مینیمال‌تر استفاده می‌شود تا صفحه حرفه‌ای‌تر به‌نظر برسد.</div>
+            </div>
+            <div class="mini-card">
+              <span class="mini-label">فونت روی موبایل</span>
+              <b>وَزیرمتن برای خوانایی بهتر</b>
+              <div class="hint">روی آیفون و صفحه‌های کوچک، فونت قبلی حفظ شده تا خواندن فارسی راحت بماند.</div>
+            </div>
+          </div>
+          <div class="notice neutral">در این نسخه، فاصله‌ها، اندازهٔ دکمه‌ها و فیلدها یکدست‌تر شده‌اند تا صفحهٔ تنظیمات شلوغ و ناهماهنگ نباشد.</div>
+        </div>
+      </div>`,
+    backup: `
+      <div class="card settings-panel">
+        <div class="section-title"><div><h2>پشتیبان و انتقال داده</h2><div class="hint">برای خیال راحت، همیشه یک نسخه از اطلاعاتت داشته باش.</div></div><span class="tag">JSON</span></div>
+        <div class="setting-stack">
+          <p class="muted" style="margin:0">تمام تسک‌ها، برنامهٔ هفتگی، پیشرفت‌ها و حال‌وهوای ثبت‌شده را می‌توانی در یک فایل JSON ذخیره کنی. حتی با فعال بودن همگام‌سازی هم بهتر است هر از گاهی پشتیبان بگیری.</p>
+          <div class="settings-actions">
+            <button class="btn btn-primary" data-export>↓ خروجی پشتیبان</button>
+            <button class="btn" data-import>↑ بازیابی فایل</button>
+            <input style="display:none" type="file" id="importFile" accept=".json,application/json">
+          </div>
+          <div class="notice neutral">بستن عادی مرورگر اطلاعات محلی را پاک نمی‌کند؛ اما پاک‌کردن حافظهٔ سایت یا داده‌های Safari / Chrome می‌تواند آن‌ها را حذف کند.</div>
+        </div>
+      </div>`,
+    sync: `
+      <div class="card settings-panel">
+        <div class="section-title"><div><h2>همگام‌سازی خصوصی با GitHub</h2><div class="hint">داده‌ها فقط در مخزن خصوصی، رمزگذاری‌شده و جدا از مخزن عمومی ذخیره می‌شوند.</div></div><span class="tag ${syncStatusTone}">${syncStatusText}</span></div>
+        <div class="sync-summary">
+          <div class="mini-card emphasis">
+            <span class="mini-label">وضعیت فعلی</span>
+            <b>${syncStatusText}</b>
+            <div class="hint" id="cloudMessage">${syncMessage}</div>
+          </div>
+          <div class="mini-card">
+            <span class="mini-label">مخزن داده</span>
+            <b>${htmlEscape(syncConf.repo || 'momentum-data')}</b>
+            <div class="hint">مالک: ${htmlEscape(syncConf.owner || 'yckta')}</div>
+          </div>
+        </div>
+        <div class="sync-form-grid">
+          <div class="form-group"><label>نام کاربری GitHub</label><input id="gitOwner" dir="ltr" placeholder="username" autocomplete="off" value="${htmlEscape(syncConf.owner || 'yckta')}"></div>
+          <div class="form-group"><label>نام مخزن خصوصی داده</label><input id="gitRepo" dir="ltr" placeholder="momentum-data" autocomplete="off" value="${htmlEscape(syncConf.repo || 'momentum-data')}"></div>
+          <div class="form-group full"><label>Fine-grained PAT (فقط مخزن داده، Contents: Read and write)</label><input id="gitToken" type="password" dir="ltr" autocomplete="off" placeholder="${syncConf.tokenBox ? 'توکن قبلاً رمزگذاری و ذخیره شده؛ نیازی به ورود دوباره نیست' : 'توکن GitHub را اینجا وارد کن'}"><div class="hint">توکن را در چت، Repository عمومی یا فایل عمومی قرار نده. فقط نسخهٔ رمزگذاری‌شدهٔ آن روی همین دستگاه ذخیره می‌شود.</div></div>
+          <div class="form-group full"><label>عبارت عبور اختصاصی رمزگذاری (حداقل ۱۰ نویسه)</label><input id="gitPass" type="password" dir="ltr" autocomplete="off" placeholder="این عبارت با رمز حساب GitHub متفاوت باشد"><div class="hint">برای بازکردن اتصال در هر دستگاه لازم است. در صورت گم‌کردنش، بازیابی داده‌های رمزگذاری‌شده ممکن نیست.</div></div>
+          <div class="form-group full trusted-device-box">
+            <label class="check-card"><input type="checkbox" id="rememberDevice" ${syncConf.rememberDevice ? 'checked' : ''}><span><b>مرا در این دستگاه به خاطر بسپار (۳۰ روز)</b><small>فقط برای لپ‌تاپ و آیفون شخصی دارای قفل صفحه. ورود خودکار با کلید غیرقابل‌استخراج در IndexedDB این دستگاه انجام می‌شود.</small></span></label>
+          </div>
+        </div>
+        ${autoUnlockBox}
+        <div class="settings-actions split-actions">
+          <button class="btn btn-primary" data-cloud-save>ذخیرهٔ اتصال و همگام‌سازی</button>
+          <button class="btn" data-cloud-login ${!syncConf.tokenBox ? 'disabled' : ''}>باز کردن اتصال</button>
+          <button class="btn" data-cloud-pull ${!isCloud ? 'disabled' : ''}>همگام‌سازی الآن</button>
+          <button class="btn" data-forget-device ${!syncConf.rememberDevice ? 'disabled' : ''}>خاموش‌کردن ورود خودکار</button>
+          <button class="btn btn-danger" data-cloud-logout ${!isCloud ? 'disabled' : ''}>قفل‌کردن اتصال</button>
+        </div>
+        <div class="subcard warning-box">
+          <div class="section-title"><h2>حل تعارض و جایگزینی داده</h2><span class="tag orange">با احتیاط</span></div>
+          <div class="hint" style="margin-bottom:10px">اگر دو دستگاه هم‌زمان تغییر داده باشند، قبل از جایگزینی از داده‌ها پشتیبان بگیر. برای دریافت تغییرات گوشی، اپ را دوباره باز کن یا «همگام‌سازی الآن» بزن.</div>
+          <div class="settings-actions">
+            <button class="btn" data-cloud-download ${!isCloud ? 'disabled' : ''}>جایگزینی این دستگاه از ابر</button>
+            <button class="btn btn-danger" data-cloud-upload ${!isCloud ? 'disabled' : ''}>جایگزینی ابر از این دستگاه</button>
+          </div>
+        </div>
+      </div>`,
+    advanced: `
+      <div class="card settings-panel">
+        <div class="section-title"><div><h2>تنظیمات تکمیلی</h2><div class="hint">بخش‌هایی که کمتر استفاده می‌کنی، اینجا جمع شده‌اند تا صفحه شلوغ نشود.</div></div></div>
+        <div class="setting-stack">
+          <div class="setting-row boxed">
+            <div>
+              <b>اعلان ددلاین</b>
+              <div class="hint">هشدار داخل برنامه فعال است. اعلان پس‌زمینه و نوتیفیکیشن سیستمی هنوز اضافه نشده‌اند.</div>
+            </div>
+            <span class="tag orange">نسخهٔ آینده</span>
+          </div>
+          <div class="subcard danger-box">
+            <div class="setting-row compact-start">
+              <div>
+                <b>شروع دوباره</b>
+                <div class="hint">همهٔ داده‌های محلی را حذف می‌کند. اگر متصل باشی و بعداً ابر را جایگزین کنی، ممکن است اطلاعات روی GitHub هم بازنویسی شوند.</div>
+              </div>
+              <button class="btn btn-danger" data-reset>بازنشانی کامل</button>
+            </div>
+          </div>
+        </div>
+      </div>`
+  };
+
+  return `<div class="settings-shell">
+    <div class="card settings-hero">
+      <div>
+        <div class="eyebrow">تنظیماتِ تمیزتر و ساده‌تر</div>
+        <h2>تنظیمات Momentum</h2>
+        <p>به‌جای یک صفحهٔ شلوغ، همه‌چیز در چهار بخش جمع شده: ظاهر، پشتیبان، همگام‌سازی و تنظیمات تکمیلی.</p>
+      </div>
+      <div class="settings-overview">
+        <div class="overview-pill"><span>پوسته</span><b>${data.theme === 'dark' ? 'تیره' : 'روشن'}</b></div>
+        <div class="overview-pill"><span>ذخیره‌سازی</span><b>${syncConf.tokenBox ? 'محلی + GitHub' : 'فقط محلی'}</b></div>
+        <div class="overview-pill"><span>وضعیت ابر</span><b>${syncStatusText}</b></div>
+      </div>
+    </div>
+    <div class="settings-layout">
+      <aside class="card settings-sidebar-card">
+        <div class="settings-sidebar-head"><b>بخش‌ها</b><small>برای تمرکز روی یک موضوع، از این منو استفاده کن.</small></div>
+        <div class="settings-nav-grid">
+          ${settingsTabCard('appearance', 'Aa', 'ظاهر و تجربه', 'تم، فونت و هماهنگی بصری')}
+          ${settingsTabCard('backup', '⤓', 'پشتیبان', 'خروجی و بازیابی فایل داده')}
+          ${settingsTabCard('sync', '☁', 'همگام‌سازی', 'اتصال GitHub و ورود خودکار', `<span class="tag ${syncStatusTone}">${syncStatusText}</span>`)}
+          ${settingsTabCard('advanced', '⚙', 'تکمیلی', 'بازنشانی و بخش‌های کم‌استفاده')}
+        </div>
+      </aside>
+      <section class="settings-content-area">${sections[settingsTab] || sections.sync}</section>
+    </div>
+  </div>`
+}
 function formField(label, input, full = false) { return `<div class="form-group ${full ? 'full' : ''}"><label>${label}</label>${input}</div>` }
 function openTaskModal(id = null, date = '') {  
 const t = id ? data.tasks.find(x => x.id === id) : null; if (id && !t) return; activeModal = { type: 'task', id }; const v = t || mkTask('', 'شخصی', 'once', 25, { planned: date }); const days = SATWEEK.map((day, i) => ({ day, num: (i + 6) % 7 })); document.getElementById('modalRoot').innerHTML = `<div class="modal-wrap" data-close-overlay="1"><div class="modal" role="dialog" aria-modal="true" aria-label="ویرایش تسک"><div class="section-title"><h2>${id ? 'ویرایش تسک' : 'ساخت تسک جدید'}</h2><button class="tiny" data-close-modal style="font-size:23px">×</button></div><form id="taskForm" class="form-grid">${formField('عنوان *', `<input name="title" required maxlength="150" value="${htmlEscape(v.title)}" placeholder="مثلاً حل تمرین مدار" autofocus>`, true)}${formField('دسته‌بندی', `<input name="category" list="cats" value="${htmlEscape(v.category)}"><datalist id="cats"><option>دانشگاه</option><option>دستیار آموزشی</option><option>پژوهش</option><option>رشد شخصی</option><option>ارشد</option><option>امتحان</option><option>شخصی</option></datalist>`)}${formField('نوع تسک', `<select name="type" id="taskType"><option value="once" ${v.type === 'once' ? 'selected' : ''}>یک‌بار انجام</option><option value="daily" ${v.type === 'daily' ? 'selected' : ''}>هر روز</option><option value="weekly" ${v.type === 'weekly' ? 'selected' : ''}>روزهای مشخص هفته</option></select>`)}${formField('زمان تخمینی (دقیقه؛ ۰ یعنی نامشخص)', `<input name="duration" type="number" min="0" max="1440" value="${v.duration || 0}">`)}${formField('اولویت', `<select name="priority">${[['urgent', 'فوری'], ['high', 'بالا'], ['normal', 'عادی'], ['low', 'پایین']].map(([x, y]) => `<option value="${x}" ${v.priority === x ? 'selected' : ''}>${y}</option>`).join('')}</select>`)}<div class="form-group full" id="dateInputs"><div class="form-grid">${formField('ددلاین شمسی (اختیاری)', `<input name="due" placeholder="۱۴۰۵/۰۸/۰۷" value="${isoToJalali(v.due)}" inputmode="numeric">`)}${formField('روز انجام شمسی (اختیاری)', `<input name="planned" placeholder="۱۴۰۵/۰۸/۰۴" value="${isoToJalali(v.planned)}" inputmode="numeric">`)}</div><div class="hint">ددلاین و روز انجام مستقل‌اند؛ می‌توانی زودتر از ددلاین برای یک تسک وقت بگذاری.</div></div><div class="form-group full" id="weeklyInputs" style="display:${v.type === 'weekly' ? 'block' : 'none'}"><label>روزهای تکرار</label><div class="multi-days">${days.map(x => `<label><input type="checkbox" name="weekday" value="${x.num}" ${v.repeatDays?.includes(x.num) ? 'checked' : ''}>${x.day}</label>`).join('')}</div></div>${formField('یادداشت‌ها و جزئیات', `<textarea name="notes" placeholder="مراحل انجام، لینک درس، جزئیات...">${htmlEscape(v.notes)}</textarea>`, true)}<div class="foot full"><button type="button" class="btn btn-ghost" data-close-modal>انصراف</button><button type="submit" class="btn btn-primary">${id ? 'ذخیرهٔ تغییرات' : 'افزودن تسک'}</button></div></form></div></div>`;

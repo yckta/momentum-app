@@ -1,7 +1,7 @@
 // Momentum — privacy-aware personal planner.
 // Application state remains local until encrypted GitHub sync is configured.
 'use strict';
-const DBKEY = 'momentum_student_v1', CFGKEY = 'momentum_git_config_v1', DIRTYKEY = 'momentum_git_dirty_v1';
+const DBKEY = 'momentum_student_v1', CFGKEY = 'momentum_git_config_v1', DIRTYKEY = 'momentum_git_dirty_v1', SETTINGS_TAB_KEY = 'momentum_settings_tab_v1';
 const DOW = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
 const SATWEEK = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
 const VIEWS = [['dashboard', 'داشبورد', '◫'], ['planner', 'برنامهٔ هفتگی', '▦'], ['tasks', 'تسک‌ها', '☑'], ['progress', 'پیشرفت', '◉'], ['settings', 'تنظیمات', '⚙']];
@@ -29,7 +29,7 @@ function defaultData() {
 }
 function normalize(data) { if (!data || !Array.isArray(data.tasks) || !Array.isArray(data.events)) throw Error('فایل داده معتبر نیست'); return { ...data, version: 1, completions: data.completions || {}, checkins: data.checkins || {}, lastModified: data.lastModified || Date.now(), theme: data.theme || 'dark' }; }
 function load() { try { const obj = JSON.parse(localStorage.getItem(DBKEY)); return obj ? normalize(obj) : defaultData() } catch (e) { console.warn(e); return defaultData() } }
-let data = load(), view = 'dashboard', selectedDate = today(), weekBase = shiftWeek(selectedDate), taskFilter = 'all', search = '', activeModal = null, draftDate = '', cloudReady = false, cloudSyncOk = false, syncTimer = null, busySync = false;
+let data = load(), view = 'dashboard', selectedDate = today(), weekBase = shiftWeek(selectedDate), taskFilter = 'all', search = '', activeModal = null, draftDate = '', cloudReady = false, cloudSyncOk = false, syncTimer = null, busySync = false, settingsTab = localStorage.getItem(SETTINGS_TAB_KEY) || 'sync';
 let syncConf = (() => { try { return JSON.parse(localStorage.getItem(CFGKEY)) || {} } catch { return {} } })();
 let repoSha = syncConf.knownSha || null, gitToken = '', gitPassword = '', cloudMessage = '', repoPrivateConfirmed = false, syncConflict = false;
 let gitDirty = localStorage.getItem(DIRTYKEY) === '1' || (!syncConf.knownSha && !data.pristine);

@@ -1,5 +1,5 @@
 function onClick(e) {  
-const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
+const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-settings-tab],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
   if (d.closeOverlay && e.target !== n) return;
   if (d.view) { view = d.view; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   if (d.edit) { openTaskModal(d.edit); return }
@@ -15,6 +15,7 @@ const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[da
   if (d.mood) { data.checkins[selectedDate] = { ...data.checkins[selectedDate], mood: d.mood }; store(); render(); return }
   if ('closeModal' in d || 'closeOverlay' in d) { closeModal(); return }
   if (d.theme) { data.theme = d.theme; store(); render(); return }
+  if (d.settingsTab) { settingsTab = d.settingsTab; localStorage.setItem(SETTINGS_TAB_KEY, settingsTab); render(); return }
   if ('addEvent' in d) { openEventModal(); return }
   if (d.editEvent) { openEventModal(d.editEvent); return }
   if (d.deleteEvent) { if (confirm('این رویداد هفتگی حذف شود؟')) { data.events = data.events.filter(x => x.id !== d.deleteEvent); closeModal(); store(); render() } return }
