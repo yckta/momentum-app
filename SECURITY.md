@@ -22,6 +22,16 @@ The token is encrypted with a passphrase before storage in the browser. Both tok
 - Losing the passphrase makes previously encrypted cloud data unrecoverable.
 - Sensitive personal information should not be entered until an independent security review has been completed.
 
+## Optional remembered device (30-day opt-in)
+
+The GitHub token still uses its existing encryption-passphrase wrapper in localStorage. The optional **Remember this device** feature stores a copy of that encryption passphrase wrapped by a random, non-extractable AES-256-GCM key in IndexedDB. The key and its encrypted payload live **in the same browser origin and browser profile**. This is *not hardware-backed*, and a non-extractable key can still be used to decrypt by any JavaScript that runs under the origin. In particular, XSS, malicious extensions, and future compromised site deployments can access the decrypted passphrase while the app is open or can request decryption using the stored key. Use only on trusted, screen-locked devices.
+
+- The remembered entry expires after 30 days; on expiry or decrypt failure, users must unlock manually and opt in again.
+- The setting is device-specific. Safari, the iPhone Home Screen PWA and another browser profile may not share storage.
+- **Disable automatic sign-in** removes the locally stored CryptoKey and encrypted passphrase. **Lock connection** does this and also clears in-memory credentials. It does not revoke the GitHub PAT; revoke it at GitHub if a device is lost or compromised.
+- Browser storage eviction may remove the remembered entry and unencrypted task cache. Keep JSON backups in a safe private location.
+- This design is a convenience feature for a single-user project. It should not be represented as secure device-bound authentication, Face ID authentication, or protection from local device compromise.
+
 ## Sync behavior
 
 The GitHub Contents API is used with file SHA checks. The app detects some concurrent modifications and stops automatic overwrite when a conflict is observed. This is **not a full transactional sync engine**, and resolution can replace one side's data. Keep backups, avoid editing the same tasks concurrently, and verify the storage status.

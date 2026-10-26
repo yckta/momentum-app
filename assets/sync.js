@@ -16,8 +16,122 @@ async function verifyPrivateRepo() { if (repoPrivateConfirmed) return; const res
 async function gitRead() { const res = await gitApi(gitApiUrl('/contents/momentum.enc.json')); if (res.missing) return null; const file = res.value; if (!file.sha || !file.content) throw Error('فایل ذخیره‌شده معتبر نیست یا بیش از حد بزرگ است'); const json = dec.decode(b64ToBytes(file.content)); let encrypted; try { encrypted = JSON.parse(json) } catch { throw Error('ساختار فایل خصوصی خراب است') } return { sha: file.sha, packet: encrypted } }
 async function gitWrite(snapshot, sha) { const envelope = await encryptText(gitPassword, JSON.stringify(snapshot), 'data'); const body = { message: 'Sync Momentum encrypted tasks', content: bytesToB64(enc.encode(JSON.stringify(envelope))), ...(sha ? { sha } : {}) }; const res = await gitApi(gitApiUrl('/contents/momentum.enc.json'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (res.missing) throw Error('مخزن قابل نوشتن نیست؛ مجوز Contents: Read and write لازم است'); return res.value.content?.sha }
 function saveSyncState(sha, dirty) { repoSha = sha || null; syncConf.knownSha = repoSha; localStorage.setItem(CFGKEY, JSON.stringify(syncConf)); markGitDirty(dirty) }
-async function saveCloudSettings() { try { const { owner, repo, token, pass } = gitConfigFromForm(); let tokenBox = syncConf.tokenBox; if (token) { if (token.length < 20) throw Error('توکن GitHub ناقص به نظر می‌رسد'); tokenBox = await encryptText(pass, token, 'token') } else if (tokenBox) { await decryptText(pass, tokenBox, 'token') } else throw Error('اول توکن Fine-grained مخصوص مخزن خصوصی را وارد کن'); const changed = owner !== syncConf.owner || repo !== syncConf.repo; syncConf = { owner, repo, tokenBox, knownSha: changed ? null : repoSha }; localStorage.setItem(CFGKEY, JSON.stringify(syncConf)); if (changed) { repoSha = null; repoPrivateConfirmed = false; markGitDirty(!data.pristine) } gitToken = await decryptText(pass, tokenBox, 'token'); gitPassword = pass; cloudReady = true; cloudSyncOk = false; setCloudMsg('در حال بررسی دسترسی به مخزن خصوصی…'); await syncLatest(); render(); if (cloudSyncOk) toast('همگام‌سازی خصوصی فعال شد') } catch (e) { cloudSyncOk = false; setCloudMsg(e.message || 'اتصال ناموفق'); toast(e.message || 'اتصال ناموفق'); refreshStorageBadge() } }
-async function cloudLogin() { try { if (!syncConf.tokenBox) throw Error('اول تنظیمات اتصال را ذخیره کن'); const pass = document.getElementById('gitPass')?.value || ''; if (pass.length < 10) throw Error('عبارت عبور رمزگذاری را وارد کن'); gitToken = await decryptText(pass, syncConf.tokenBox, 'token'); gitPassword = pass; cloudReady = true; cloudSyncOk = false; await syncLatest(); render(); if (cloudSyncOk) toast('اتصال خصوصی باز شد') } catch (e) { setCloudMsg(e.message || 'اتصال ناموفق'); toast(e.message || 'اتصال ناموفق'); refreshStorageBadge() } }
+// Remembering a device is an explicit opt-in. Even a non-extractable key can
+// be used by scripts running on this origin, so this is appropriate only for
+// the user's own screen-locked devices, not a shared computer.
+async function applyRememberChoice(shouldRemember, pass) {
+  if (shouldRemember && cloudSyncOk && !syncConflict) {
+    try {
+      await rememberUnlockOnDevice(pass, syncConf.owner, syncConf.repo);
+      syncConf.rememberDevice = true;
+      localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+      return;
+    } catch (error) {
+      syncConf.rememberDevice = false;
+      localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+      setCloudMsg('اتصال برقرار است، ولی ذخیرهٔ ورود خودکار ممکن نشد: ' + error.message);
+      return;
+    }
+  }
+  if (!shouldRemember) {
+    if (syncConf.rememberDevice) await forgetRememberedUnlock();
+    syncConf.rememberDevice = false;
+    localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+  }
+}
+
+async function saveCloudSettings() {
+  try {
+    const remember = !!document.getElementById('rememberDevice')?.checked;
+    const { owner, repo, token, pass } = gitConfigFromForm();
+    let tokenBox = syncConf.tokenBox;
+    if (token) {
+      if (token.length < 20) throw Error('توکن GitHub ناقص به نظر می‌رسد');
+      tokenBox = await encryptText(pass, token, 'token');
+    } else if (tokenBox) {
+      await decryptText(pass, tokenBox, 'token');
+    } else throw Error('اول توکن Fine-grained مخصوص مخزن خصوصی را وارد کن');
+    const changed = owner !== syncConf.owner || repo !== syncConf.repo;
+    syncConf = { ...syncConf, owner, repo, tokenBox, knownSha: changed ? null : repoSha };
+    localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+    if (changed) { repoSha = null; repoPrivateConfirmed = false; markGitDirty(!data.pristine); }
+    gitToken = await decryptText(pass, tokenBox, 'token');
+    gitPassword = pass;
+    cloudReady = true;
+    cloudSyncOk = false;
+    setCloudMsg('در حال بررسی دسترسی به مخزن خصوصی…');
+    await syncLatest();
+    if (!remember || cloudSyncOk) await applyRememberChoice(remember, pass);
+    render();
+    if (cloudSyncOk) toast(remember ? 'اتصال و ورود خودکار روی این دستگاه فعال شد' : 'همگام‌سازی خصوصی فعال شد');
+  } catch (e) {
+    cloudSyncOk = false;
+    setCloudMsg(e.message || 'اتصال ناموفق');
+    toast(e.message || 'اتصال ناموفق');
+    refreshStorageBadge();
+  }
+}
+
+async function cloudLogin() {
+  try {
+    if (!syncConf.tokenBox) throw Error('اول تنظیمات اتصال را ذخیره کن');
+    const pass = document.getElementById('gitPass')?.value || '';
+    const remember = !!document.getElementById('rememberDevice')?.checked;
+    if (pass.length < 10) throw Error('عبارت عبور رمزگذاری را وارد کن');
+    gitToken = await decryptText(pass, syncConf.tokenBox, 'token');
+    gitPassword = pass;
+    cloudReady = true;
+    cloudSyncOk = false;
+    await syncLatest();
+    if (!remember || cloudSyncOk) await applyRememberChoice(remember, pass);
+    render();
+    if (cloudSyncOk) toast('اتصال خصوصی باز شد');
+  } catch (e) {
+    setCloudMsg(e.message || 'اتصال ناموفق');
+    toast(e.message || 'اتصال ناموفق');
+    refreshStorageBadge();
+  }
+}
+
+async function initializeRememberedDevice() {
+  if (!syncConf.rememberDevice || !syncConf.tokenBox) return;
+  try {
+    const pass = await restoreRememberedUnlock(syncConf.owner, syncConf.repo);
+    gitToken = await decryptText(pass, syncConf.tokenBox, 'token');
+    gitPassword = pass;
+    cloudReady = true;
+    cloudSyncOk = false;
+    render();
+    // Network failure does not revoke the trusted device: local tasks remain
+    // available and synchronization retries on focus / visibility / interval.
+    await syncLatest();
+  } catch (error) {
+    gitToken = '';
+    gitPassword = '';
+    cloudReady = false;
+    cloudSyncOk = false;
+    syncConf.rememberDevice = false;
+    localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+    try { await forgetRememberedUnlock(); } catch (e) { console.warn('Could not clear trusted-device state', e); }
+    render();
+    setCloudMsg('ورود خودکار غیرفعال شد: ' + error.message + '؛ اتصال را با عبارت عبور دوباره باز کن.');
+  }
+}
+
+async function disableRememberedDevice() {
+  try {
+    await forgetRememberedUnlock();
+    syncConf.rememberDevice = false;
+    localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+    render();
+    setCloudMsg('ورود خودکار این دستگاه حذف شد. اتصال فعلی تا قفل‌شدن برنامه باز می‌ماند.');
+    toast('ورود خودکار غیرفعال شد');
+  } catch (error) {
+    setCloudMsg('حذف اطلاعات ورود خودکار ناموفق بود: ' + error.message);
+    toast('حذف ورود خودکار ناموفق بود');
+  }
+}
+
 async function syncLatest() {  
 if (!cloudReady || !gitPassword || busySync || syncConflict) return; busySync = true; try {    
 await verifyPrivateRepo(); const file = await gitRead(); if (!file) { const snapshot = JSON.parse(JSON.stringify(data)), stamp = data.lastModified; const newSha = await gitWrite(snapshot, null); if (!newSha) throw Error('GitHub SHA برنگرداند'); saveSyncState(newSha, data.lastModified !== stamp); cloudSyncOk = !gitDirty; if (gitDirty) scheduleUpload(); setCloudMsg('فایل خصوصی رمزگذاری‌شده ایجاد شد.'); }
@@ -29,6 +143,6 @@ await verifyPrivateRepo(); const file = await gitRead(); if (!file) { const snap
 } catch (e) { cloudSyncOk = false; refreshStorageBadge(); setCloudMsg('خطای همگام‌سازی: ' + (e.message || e)); toast('همگام‌سازی ناموفق؛ اطلاعات این دستگاه حفظ شده است') } finally { busySync = false }
 }
 function scheduleUpload() { clearTimeout(syncTimer); syncTimer = setTimeout(() => syncLatest(), 1500) }
-function cloudLogout() { cloudReady = false; cloudSyncOk = false; gitToken = ''; gitPassword = ''; repoPrivateConfirmed = false; clearTimeout(syncTimer); render(); toast('اتصال قفل شد؛ داده‌های محلی محفوظ‌اند') }
+async function cloudLogout() { await disableRememberedDevice(); cloudReady = false; cloudSyncOk = false; gitToken = ''; gitPassword = ''; repoPrivateConfirmed = false; clearTimeout(syncTimer); render(); toast('اتصال قفل شد؛ برای ورود دوباره عبارت عبور لازم است') }
 async function forceCloudDownload() { if (!cloudReady) { toast('اول اتصال را باز کن'); return } if (!confirm('اطلاعات این دستگاه با نسخهٔ ابری جایگزین می‌شود. اول یک فایل پشتیبان گرفته می‌شود. ادامه می‌دهی؟')) return; downloadBackup(); try { await verifyPrivateRepo(); const file = await gitRead(); if (!file) throw Error('هنوز فایلی روی مخزن داده نیست'); const remote = normalize(JSON.parse(await decryptText(gitPassword, file.packet, 'data'))); data = remote; localStorage.setItem(DBKEY, JSON.stringify(data)); saveSyncState(file.sha, false); syncConflict = false; cloudSyncOk = true; render(); toast('داده‌های ابری جایگزین شدند') } catch (e) { setCloudMsg(e.message); toast(e.message) } }
 async function forceCloudUpload() { if (!cloudReady) { toast('اول اتصال را باز کن'); return } if (!confirm('هشدار: نسخهٔ ابری با اطلاعات همین دستگاه بازنویسی خواهد شد. مطمئنی؟')) return; downloadBackup(); try { await verifyPrivateRepo(); const file = await gitRead(); const snapshot = JSON.parse(JSON.stringify(data)), stamp = data.lastModified; const sha = await gitWrite(snapshot, file?.sha || null); saveSyncState(sha, data.lastModified !== stamp); syncConflict = false; cloudSyncOk = !gitDirty; render(); toast('نسخهٔ محلی روی ابر جایگزین شد') } catch (e) { setCloudMsg(e.message); toast(e.message) } }

@@ -1,5 +1,5 @@
 function onClick(e) {  
-const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload]'); if (!n) return; const d = n.dataset;
+const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
   if (d.closeOverlay && e.target !== n) return;
   if (d.view) { view = d.view; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   if (d.edit) { openTaskModal(d.edit); return }
@@ -26,6 +26,7 @@ const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[da
   if ('cloudLogin' in d) { cloudLogin(); return }
   if ('cloudPull' in d) { syncLatest(); return }
   if ('cloudLogout' in d) { cloudLogout(); return }
+  if ('forgetDevice' in d) { disableRememberedDevice(); return }
   if ('cloudDownload' in d) { forceCloudDownload(); return }
   if ('cloudUpload' in d) { forceCloudUpload(); return }
 }
@@ -35,7 +36,8 @@ document.addEventListener('input', e => { if (e.target.id === 'taskSearch') { co
 document.getElementById('quickAdd').addEventListener('click', () => openTaskModal());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() });
 render();
-// An encryption passphrase is required each time the connection is unlocked; never store it on disk.
+// Optional trusted-device restoration runs only on devices that opted in.
+initializeRememberedDevice();
 window.addEventListener('focus', () => { if (cloudReady && !syncConflict) syncLatest() });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && cloudReady && !syncConflict) syncLatest() });
 setInterval(() => { if (cloudReady && !document.hidden && !syncConflict) syncLatest() }, 60000);

@@ -1,7 +1,8 @@
 // Cache the app shell for offline navigation; never cache GitHub API responses.
-const CACHE_NAME = 'momentum-v4';
+const CACHE_NAME = 'momentum-v5';
 const APP_SHELL = [
-  './', './index.html', './assets/app.js', './assets/styles.css',
+  './', './index.html', './assets/core.js', './assets/ui.js',
+  './assets/sync.js', './assets/device.js', './assets/app.js', './assets/styles.css',
   './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'
 ];
 

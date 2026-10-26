@@ -9,7 +9,7 @@ const file = (name) => readFileSync(join(root, name), 'utf8');
 
 test('GitHub Pages entry point and static assets exist', () => {
   const index = file('index.html');
-  for (const path of ['assets/core.js', 'assets/ui.js', 'assets/sync.js', 'assets/app.js', 'assets/styles.css', 'sw.js', 'manifest.webmanifest']) {
+  for (const path of ['assets/core.js', 'assets/ui.js', 'assets/sync.js', 'assets/device.js', 'assets/app.js', 'assets/styles.css', 'sw.js', 'manifest.webmanifest']) {
     assert.equal(existsSync(join(root, path)), true, `${path} is missing`);
   }
   assert.match(index, /<html lang="fa" dir="rtl">/);
@@ -18,7 +18,7 @@ test('GitHub Pages entry point and static assets exist', () => {
 });
 
 test('No secrets or private starter tasks are published', () => {
-  const files = ['index.html', 'assets/core.js', 'assets/ui.js', 'assets/sync.js', 'assets/app.js', 'README.md'];
+  const files = ['index.html', 'assets/core.js', 'assets/ui.js', 'assets/sync.js', 'assets/device.js', 'assets/app.js', 'README.md'];
   const content = files.map(file).join('\n');
   assert.doesNotMatch(content, /github_pat_[A-Za-z0-9_]{25,}|ghp_[A-Za-z0-9]{30,}/);
   assert.doesNotMatch(content, /PRIVATE-IMPORT-Momentum/);
@@ -32,4 +32,6 @@ test('Synced data requires private repository and encryption', () => {
   assert.match(sync, /PBKDF2/);
   assert.match(sync, /tokenBox/);
   assert.match(sync, /syncConflict/);
+  assert.match(sync, /initializeRememberedDevice/);
+  assert.match(file('assets/device.js'), /extractable.*false|false, \['encrypt', 'decrypt'\]/);
 });
