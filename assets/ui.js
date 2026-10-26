@@ -2,174 +2,188 @@ function render() {
 document.body.classList.toggle('light', data.theme === 'light'); document.getElementById('desktopNav').innerHTML = iconNav(); document.getElementById('mobileNav').innerHTML = iconNav(); document.getElementById('pageHeading').textContent = VIEWS.find(v => v[0] === view)[1]; document.getElementById('dateBadge').textContent = longDate(today()); refreshStorageBadge(); document.getElementById('sidebarProgress').innerHTML = `<small class="muted">پیشرفت شخصیتت</small><div class="rowline"><strong>Level ${fnum(level())}</strong><b>${fnum(xpTotal())} XP</b></div><div class="meter"><span style="width:${xpIntoLevel() / 2}%"></span></div><small class="muted">${fnum(200 - xpIntoLevel())} XP تا مرحلهٔ بعد</small>`;
   const container = document.getElementById('content'); container.innerHTML = ({ dashboard: renderDashboard, planner: renderPlanner, tasks: renderTasks, progress: renderProgress, settings: renderSettings }[view])();
 }
-function renderTaskRow(t, date = selectedDate) {  
-let done = isDone(t, date), due = t.due ? `<span class="tag ${t.due < today() && !done ? 'red' : t.due === today() ? 'orange' : ''}">ددلاین ${shortDate(t.due)}</span>` : '';
-  return `<div class="task-row ${done ? 'done' : ''}"><input aria-label="انجام ${htmlEscape(t.title)}" type="checkbox" data-toggle="${t.id}" data-date="${date}" ${done ? 'checked' : ''}><div class="details"><div class="task-title">${htmlEscape(t.title)}</div><div class="subtext"><span>${niceCategory(t.category)}</span>${t.duration ? `<span>· ${fnum(t.duration)} دقیقه</span>` : ''}${t.type !== 'once' ? '<span>· تکرارشونده</span>' : ''}${due}</div></div><span class="tag purple">+${fnum(t.xp)} XP</span><div class="small-actions"><button class="tiny" title="ویرایش" aria-label="ویرایش" data-edit="${t.id}">✎</button><button class="tiny" title="حذف" aria-label="حذف" data-del="${t.id}">×</button></div></div>`
+function renderTaskRow(t, date = selectedDate) {
+  const done = isDone(t, date);
+  const isLate = t.type === 'once' && t.due && t.due < today() && !done;
+  const due = t.type === 'once' && t.due ? `<span class="task-meta-date ${isLate ? 'is-late' : ''}"><span aria-hidden="true">◷</span> ${shortDate(t.due)}</span>` : '';
+  const priority = t.priority === 'urgent' ? '<span class="priority-mark urgent">فوری</span>' : t.priority === 'high' ? '<span class="priority-mark high">مهم</span>' : '';
+  return `<div class="task-row ${done ? 'done' : ''}">
+    <input aria-label="انجام ${htmlEscape(t.title)}" type="checkbox" data-toggle="${t.id}" data-date="${date}" ${done ? 'checked' : ''}>
+    <div class="details"><div class="task-name-line"><span class="task-title">${htmlEscape(t.title)}</span>${priority}</div>
+      <div class="subtext"><span>${niceCategory(t.category)}</span>${t.duration ? `<span>· ${fnum(t.duration)} دقیقه</span>` : ''}${t.type !== 'once' ? '<span>· تکرارشونده</span>' : ''}${due}</div>
+    </div>
+    <span class="xp-pill">+${fnum(t.xp || 20)} XP</span>
+    <div class="small-actions"><button class="tiny" title="ویرایش" aria-label="ویرایش ${htmlEscape(t.title)}" data-edit="${t.id}">✎</button><button class="tiny" title="حذف" aria-label="حذف ${htmlEscape(t.title)}" data-del="${t.id}">×</button></div>
+  </div>`;
 }
-function renderEvent(e) { return `<div class="event ${e.kind}"><b>${htmlEscape(e.title)}</b><small>${formatTime(e.start)} – ${formatTime(e.end)}</small></div>` }
+function renderEvent(e) {
+  return `<div class="event ${e.kind}"><span class="event-bullet"></span><div class="event-content"><b>${htmlEscape(e.title)}</b><small>${formatTime(e.start)} تا ${formatTime(e.end)}</small></div></div>`;
+}
 function overlapAlert(date) { const e = dayEvents(date), warnings = []; for (let i = 1; i < e.length; i++) { if (e[i].start < e[i - 1].end) warnings.push(`تداخل «${e[i - 1].title}» و «${e[i].title}»`); else if (e[i].start === e[i - 1].end && e[i].kind !== e[i - 1].kind) warnings.push(`«${e[i - 1].title}» و «${e[i].title}» بدون فاصله هستند`) } return warnings }
-function renderDashboard() {  
-const todayTasks = dailyTasks(selectedDate), done = countDone(selectedDate), pct = todayTasks.length ? Math.round(done / todayTasks.length * 100) : 0, events = dayEvents(selectedDate), due = dueTasks(selectedDate);
-  let mood = data.checkins[selectedDate] || {};
-  return `<section class="grid2"><div class="gap"><div class="card intro"><div class="eyebrow" style="color:#c6c0fa">یک قدم کوچک هم پیشرفت است</div><h2>${selectedDate === today() ? 'برنامهٔ امروزت' : htmlEscape(dayName(selectedDate)) + '، ' + shortDate(selectedDate)}</h2><p>کارهای مهم را انجام بده؛ لازم نیست تمام روز پُر باشد.</p><div class="intro-bottom"><div class="ring" style="background:conic-gradient(#a99fff ${pct}%,#494765 ${pct}%)"><div>${fnum(pct)}٪</div></div><div class="stat"><b>${fnum(done)} از ${fnum(todayTasks.length)}</b><span>مأموریت‌های برنامه‌ریزی‌شده</span></div><div class="stat"><b>${fnum(todayTasks.filter(t => !isDone(t, selectedDate)).reduce((sum, t) => sum + (+t.duration || 0), 0))} دقیقه</b><span>زمان تخمینی کارهای باز</span></div></div></div><div class="card"><div class="date-strip"><h2 style="font-size:16px;margin:0">مأموریت‌های روز</h2><div class="date-arrows"><button class="iconbtn" data-step-day="-1" title="روز قبل">‹</button><span class="tag">${shortDate(selectedDate)} · ${dayName(selectedDate)}</span><button class="iconbtn" data-step-day="1" title="روز بعد">›</button><button class="btn btn-ghost" data-go-today>امروز</button></div></div>${todayTasks.length ? todayTasks.map(t => renderTaskRow(t, selectedDate)).join('') : '<div class="task-empty">تسک برنامه‌ریزی‌شده‌ای نداری. می‌توانی یک کار به این روز اضافه کنی.</div>'}<button class="btn" style="margin-top:12px" data-new-date="${selectedDate}">＋ افزودن تسک برای این روز</button></div><div class="card"><div class="section-title"><h2>ددلاین‌های ۷ روز آینده و عقب‌افتاده</h2><button class="tiny" data-view="tasks">همهٔ تسک‌ها ◀</button></div>${due.length ? due.slice(0, 8).map(t => `<div class="event ${t.due < selectedDate ? 'due-alert' : ''}" style="border-color:var(--orange);cursor:pointer" data-edit="${t.id}"><b>${htmlEscape(t.title)}</b><small>${shortDate(t.due)}</small></div>`).join('') : '<div class="empty-hint">هیچ ددلاین نزدیک یا عقب‌افتاده‌ای ثبت نشده است.</div>'}<div class="empty-hint">تسک‌هایی که هنوز برای روزی برنامه‌ریزی نشده‌اند، در تب «تسک‌ها» باقی می‌مانند.</div></div></div>
-<div class="gap"><div class="card"><div class="section-title"><h2>رویدادهای ثابت این روز</h2><span class="tag">${fnum(events.length)} رویداد</span></div>${events.length ? events.map(renderEvent).join('') : '<div class="task-empty">این روز کلاس یا قرار ثابتی نداری.</div>'}${overlapAlert(selectedDate).map(a => `<div class="notice">⚠ ${htmlEscape(a)}؛ زمان رفت‌وآمد را بررسی کن.</div>`).join('')}</div><div class="card"><div class="section-title"><h2>حالت امروزت چطور است؟</h2><span class="tag">ثبت اختیاری</span></div><div class="muted" style="margin-bottom:10px">سطح انرژی</div><div class="mood-buttons">${[1, 2, 3, 4, 5].map(i => `<button data-energy="${i}" class="${mood.energy === i ? 'selected' : ''}">${fnum(i)} ${['', 'خیلی کم', 'کم', 'متوسط', 'خوب', 'عالی'][i]}</button>`).join('')}</div><div class="divider"></div><div class="muted" style="margin-bottom:10px">حال‌وهوا</div><div class="mood-buttons">${[['calm', 'آروم'], ['ok', 'معمولی'], ['great', 'سرحال'], ['tired', 'خسته']].map(([id, t]) => `<button class="${mood.mood === id ? 'selected' : ''}" data-mood="${id}">${t}</button>`).join('')}</div><div class="empty-hint">انرژی پایین به معنی جریمه یا کاهش XP نیست.</div></div><div class="card"><div class="section-title"><h2>وضعیت هفته</h2><span class="tag purple">Level ${fnum(level())}</span></div>${renderMiniWeekBars()}<button class="btn" style="margin-top:12px" data-view="progress">جزئیات پیشرفت</button></div></div></section>`;
+function renderDashboard() {
+  const todayTasks = dailyTasks(selectedDate), completed = countDone(selectedDate);
+  const pct = todayTasks.length ? Math.round(100 * completed / todayTasks.length) : 0;
+  const left = todayTasks.length - completed;
+  const mins = todayTasks.filter(t => !isDone(t,selectedDate)).reduce((sum,t)=>sum + (+t.duration || 0),0);
+  const events = dayEvents(selectedDate);
+  const due = dueTasks(selectedDate);
+  const checkin = data.checkins[selectedDate] || {};
+  const d = selectedDate === today();
+  return `<div class="dashboard-layout">
+    <section class="hero-panel card">
+      <div class="hero-copy">
+        <span class="hero-eyebrow">${d ? 'امروز، یک فرصت تازه' : htmlEscape(dayName(selectedDate)) + ' · ' + shortDate(selectedDate)}</span>
+        <h2>${d ? 'قدم‌های کوچیک، پیشرفت‌های بزرگ.' : 'برنامهٔ ' + htmlEscape(dayName(selectedDate))}</h2>
+        <p>برای شروع، فقط روی کار بعدی تمرکز کن.</p>
+        <button class="btn hero-action" data-new-date="${selectedDate}">＋ افزودن کار جدید</button>
+      </div>
+      <div class="hero-progress" role="img" aria-label="${fnum(pct)} درصد کارهای این روز انجام شده">
+        <div class="hero-ring" style="--progress:${pct}"><span><strong>${fnum(pct)}٪</strong><small>تکمیل امروز</small></span></div>
+      </div>
+    </section>
+    <section class="stats-grid" aria-label="خلاصهٔ امروز">
+      <div class="card metric-card"><span class="metric-icon metric-violet">☑</span><span class="metric-label">کارهای انجام‌شده</span><strong>${fnum(completed)} <small>/ ${fnum(todayTasks.length)}</small></strong><span class="metric-foot">${left ? fnum(left) + ' کار باقی‌مانده' : 'همهٔ کارهای امروز انجام شده'}</span></div>
+      <div class="card metric-card"><span class="metric-icon metric-cyan">◷</span><span class="metric-label">زمان برنامه‌ریزی‌شدهٔ باقی‌مانده</span><strong>${fnum(mins)} <small>دقیقه</small></strong><span class="metric-foot">بر اساس تخمین هر تسک</span></div>
+      <div class="card metric-card"><span class="metric-icon metric-amber">✦</span><span class="metric-label">امتیاز کل</span><strong>${fnum(xpTotal())} <small>XP</small></strong><span class="metric-foot">سطح ${fnum(level())}</span></div>
+    </section>
+    <div class="content-columns">
+      <div class="primary-stack">
+        <section class="card section-card">
+          <div class="section-title"><div><span class="section-kicker">فهرست کارها</span><h2>کارهای این روز</h2></div>
+            <div class="date-controls"><button class="iconbtn" data-step-day="-1" aria-label="روز قبل">‹</button><span>${shortDate(selectedDate)}</span><button class="iconbtn" data-step-day="1" aria-label="روز بعد">›</button><button class="btn btn-ghost" data-go-today>امروز</button></div></div>
+          ${todayTasks.length ? `<div class="dashboard-tasks">${todayTasks.map(t=>renderTaskRow(t,selectedDate)).join('')}</div>` : `<div class="empty-state"><span class="empty-glyph">☑</span><h3>برنامه‌ات هنوز خالیه</h3><p>یک کار کوچیک برای این روز اضافه کن.</p><button class="btn btn-primary" data-new-date="${selectedDate}">افزودن اولین کار</button></div>`}
+          ${todayTasks.length ? `<button class="text-action" data-new-date="${selectedDate}">＋ افزودن کار</button>` : ''}
+        </section>
+        <section class="card section-card">
+          <div class="section-title"><div><span class="section-kicker">مهلت‌ها</span><h2>ددلاین‌های پیش رو</h2></div><button class="text-action" data-view="tasks">مشاهدهٔ همه</button></div>
+          ${due.length ? `<div class="deadline-list">${due.slice(0,5).map(t=>`<button class="deadline-item ${t.due < selectedDate ? 'overdue' : ''}" data-edit="${t.id}"><span class="deadline-dot"></span><span class="deadline-label">${htmlEscape(t.title)}</span><span class="deadline-date">${shortDate(t.due)}</span></button>`).join('')}</div>` : '<div class="quiet-empty">ددلاین نزدیکی نداری.</div>'}
+        </section>
+      </div>
+      <aside class="secondary-stack">
+        <section class="card section-card">
+          <div class="section-title"><div><span class="section-kicker">تقویم روز</span><h2>برنامهٔ ثابت</h2></div><span class="count-badge">${fnum(events.length)}</span></div>
+          ${events.length ? `<div class="event-list">${events.map(renderEvent).join('')}</div>` : '<div class="quiet-empty">امروز قرار ثابتی ثبت نشده.</div>'}
+          ${overlapAlert(selectedDate).map(a=>`<div class="notice">${htmlEscape(a)}</div>`).join('')}
+          <button class="text-action" data-view="planner">تقویم هفتگی <span aria-hidden="true">←</span></button>
+        </section>
+        <section class="card section-card">
+          <div class="section-title"><div><span class="section-kicker">خودت را چک کن</span><h2>حالت چطوره؟</h2></div></div>
+          <div class="mood-label">انرژی</div><div class="energy-scale">${[1,2,3,4,5].map(i=>`<button data-energy="${i}" class="${checkin.energy === i ? 'selected' : ''}" aria-label="سطح انرژی ${fnum(i)}" title="${['','خیلی کم','کم','متوسط','خوب','عالی'][i]}">${fnum(i)}</button>`).join('')}</div>
+          <div class="mood-label">حال‌وهوا</div><div class="mood-chips">${[['calm','آروم'],['ok','معمولی'],['great','سرحال'],['tired','خسته']].map(([key,title])=>`<button data-mood="${key}" class="${checkin.mood === key ? 'selected' : ''}">${title}</button>`).join('')}</div>
+        </section>
+        <section class="card section-card progress-card"><div class="section-title"><div><span class="section-kicker">مرور هفته</span><h2>روند انجام کارها</h2></div></div>${renderMiniWeekBars()}<button class="text-action" data-view="progress">جزئیات پیشرفت <span aria-hidden="true">←</span></button></section>
+      </aside>
+    </div>
+  </div>`;
 }
 function renderMiniWeekBars() { const base = shiftWeek(selectedDate); return Array.from({ length: 7 }, (_, i) => { const date = addDays(base, i), ts = dailyTasks(date), done = countDone(date), pct = ts.length ? Math.round(done / ts.length * 100) : 0; return `<div class="barline"><span class="dayname">${SATWEEK[i]}</span><div class="track"><div class="fill" style="width:${pct}%"></div></div><span class="count">${fnum(done)}/${fnum(ts.length)}</span></div>` }).join('') }
-function renderPlanner() { const days = Array.from({ length: 7 }, (_, i) => addDays(weekBase, i)); return `<div class="card"><div class="section-title"><h2>تقویم هفتگی</h2><div class="date-arrows"><button class="iconbtn" data-step-week="-7">‹</button><span class="tag">${shortDate(days[0])} تا ${shortDate(days[6])}</span><button class="iconbtn" data-step-week="7">›</button><button class="btn btn-ghost" data-reset-week>این هفته</button></div></div><div class="notice neutral">برای تغییر روز یک تسک، روی آن کلیک کن و «روز انجام» را ویرایش کن. زمان ثابت کلاس‌ها و رفت‌وآمدها جداگانه نمایش داده می‌شود.</div><div class="week-grid">${days.map(d => { const ts = dailyTasks(d), ev = dayEvents(d); return `<div class="day-col ${d === today() ? 'current' : ''}"><div class="dayhead"><b>${dayName(d)}</b><small>${shortDate(d)}</small></div>${ev.map(e => `<div class="calendar-item eventitem" data-edit-event="${e.id}"><small>${formatTime(e.start)}–${formatTime(e.end)}</small>${htmlEscape(e.title)}</div>`).join('')}${ts.map(t => `<div class="calendar-item ${isDone(t, d) ? 'doneitem' : ''}" data-edit="${t.id}"><small>${isDone(t, d) ? '✓ ' : ''}${t.duration ? fnum(t.duration) + ' دقیقه' : 'بدون مدت'}</small>${htmlEscape(t.title)}</div>`).join('')}${overlapAlert(d).length ? `<div class="tag orange">⚠ فاصلهٔ رویدادها</div>` : ''}<button class="add-day" data-new-date="${d}">＋ تسک</button></div>` }).join('')}</div><div class="empty-hint">ساعت دقیق انجام کارهای غیردائمی هنوز قفل نمی‌شود؛ در نسخهٔ بعد می‌توانیم بلوک‌های ساعتی و کشیدن و رهاکردن را اضافه کنیم.</div></div><div class="card" style="margin-top:16px"><div class="rowline"><div><b>قرارها و کلاس‌های هفتگی</b><div class="hint">همهٔ ساعت‌ها قابل ویرایش هستند؛ برای اصلاح، روی کارت رویداد در تقویم بزن.</div></div><button class="btn" data-add-event>＋ رویداد ثابت</button></div></div>` }
-function renderTasks() {  
-const total = data.tasks.length, open = data.tasks.filter(t => t.type === 'once' && !isDone(t)).length; let filtered = data.tasks.filter(t => { const hit = (t.title + ' ' + t.notes + ' ' + t.category).toLowerCase().includes(search.toLowerCase()); return hit && (taskFilter === 'all' || (taskFilter === 'routine' ? t.type !== 'once' : taskFilter === 'project' ? t.category === 'دانشگاه' || t.category === 'دستیار آموزشی' : taskFilter === 'pending' ? t.type === 'once' && !isDone(t) : taskFilter === 'done' ? t.type === 'once' && isDone(t) : true)) }).sort((a, b) => (a.type === 'once' && b.type !== 'once' ? -1 : a.type !== 'once' && b.type === 'once' ? 1 : 0) || (a.due || '9999').localeCompare(b.due || '9999'));
-  return `<div class="card"><div class="section-title"><div><h2>همهٔ کارها</h2><div class="hint">${fnum(total)} تسک ثبت‌شده · ${fnum(open)} تسک غیردائمی باز</div></div><button class="btn btn-primary" data-new-task>＋ افزودن تسک</button></div><div class="toolbar"><input id="taskSearch" placeholder="جست‌وجو در عنوان، یادداشت و دسته..." value="${htmlEscape(search)}" aria-label="جست‌وجو"><div class="tabs">${[['all', 'همه'], ['routine', 'تکرارشونده'], ['project', 'دانشگاه'], ['pending', 'در انتظار'], ['done', 'انجام‌شده']].map(([id, name]) => `<button data-filter="${id}" class="${taskFilter === id ? 'active' : ''}">${name}</button>`).join('')}</div></div><div class="task-list" id="taskList">${filtered.length ? filtered.map(t => `<div class="task-card">${renderTaskRow(t, t.type === 'once' ? t.planned || selectedDate : selectedDate)}${t.notes ? `<div class="hint" style="padding-right:32px">${htmlEscape(t.notes)}</div>` : ''}${t.type === 'weekly' ? `<div class="hint" style="padding-right:32px">تکرار: ${t.repeatDays.map(i => DOW[i]).join('، ') || 'روز نامشخص'}</div>` : ''}</div>`).join('') : '<div class="task-empty">تسکی با این فیلتر پیدا نشد.</div>'}</div></div>`
+function renderPlanner() {
+  const days = Array.from({ length:7 },(_,i)=>addDays(weekBase,i));
+  const allPlanned = days.reduce((sum,d)=>sum+dailyTasks(d).length,0);
+  return `<div class="planner-screen">
+    <section class="card planner-heading">
+      <div><span class="section-kicker">نمای هفتگی</span><h2>هفته‌ات در یک نگاه</h2><p>${fnum(allPlanned)} کار برنامه‌ریزی‌شده</p></div>
+      <div class="planner-controls"><button class="iconbtn" data-step-week="-7" aria-label="هفتهٔ قبل">‹</button><strong>${shortDate(days[0])} — ${shortDate(days[6])}</strong><button class="iconbtn" data-step-week="7" aria-label="هفتهٔ بعد">›</button><button class="btn btn-ghost" data-reset-week>این هفته</button><button class="btn btn-primary" data-add-event>＋ رویداد ثابت</button></div>
+    </section>
+    <section class="week-scroller" aria-label="برنامهٔ هفتگی"><div class="week-grid">
+    ${days.map(d=>{
+      const ts=dailyTasks(d), ev=dayEvents(d), complete=countDone(d);
+      return `<div class="day-col ${d===today()?'current':''}">
+        <div class="dayhead"><div><b>${dayName(d)}</b><small>${shortDate(d)}</small></div><span class="day-count">${fnum(complete)}/${fnum(ts.length)}</span></div>
+        <div class="day-items">
+        ${ev.map(e=>`<button class="calendar-item eventitem ${e.kind}" data-edit-event="${e.id}" title="ویرایش رویداد"><span class="calendar-time">${formatTime(e.start)}–${formatTime(e.end)}</span><span>${htmlEscape(e.title)}</span></button>`).join('')}
+        ${ts.map(t=>`<button class="calendar-item taskitem ${isDone(t,d)?'doneitem':''}" data-edit="${t.id}" title="ویرایش تسک"><span class="calendar-time">${isDone(t,d)?'✓ انجام شد':t.duration?fnum(t.duration)+' دقیقه':'تسک'}</span><span>${htmlEscape(t.title)}</span></button>`).join('')}
+        ${overlapAlert(d).length?'<span class="mini-alert">⚠ تداخل برنامه</span>':''}
+        </div>
+        <button class="add-day" data-new-date="${d}">＋ افزودن</button>
+      </div>`;
+    }).join('')}
+    </div></section>
+    <div class="planner-legend"><span><i class="legend-marker marker-event"></i> رویداد ثابت</span><span><i class="legend-marker marker-task"></i> تسک</span><span><i class="legend-marker marker-done"></i> انجام‌شده</span></div>
+  </div>`;
+}
+function renderTasks() {
+  const total=data.tasks.length;
+  const open=data.tasks.filter(t=>t.type==='once'&&!isDone(t)).length;
+  const recurring=data.tasks.filter(t=>t.type!=='once').length;
+  const filtered=data.tasks.filter(t=>{
+    const hit=(t.title+' '+t.notes+' '+t.category).toLowerCase().includes(search.toLowerCase());
+    return hit && (taskFilter==='all'||(taskFilter==='routine'?t.type!=='once':taskFilter==='project'?t.category==='دانشگاه'||t.category==='دستیار آموزشی':taskFilter==='pending'?t.type==='once'&&!isDone(t):taskFilter==='done'?t.type==='once'&&isDone(t):true));
+  }).sort((a,b)=>(a.type==='once'&&b.type!=='once'?-1:a.type!=='once'&&b.type==='once'?1:0)||(a.due||'9999').localeCompare(b.due||'9999'));
+  return `<div class="tasks-screen">
+    <section class="task-page-heading"><div><span class="section-kicker">برنامه‌ریزی شخصی</span><h2>همهٔ کارها</h2><p>کارهای روزمره، پروژه‌ها و هدف‌هات یک‌جا.</p></div></section>
+    <section class="task-metrics" aria-label="آمار تسک‌ها"><div class="task-metric"><span>کل تسک‌ها</span><strong>${fnum(total)}</strong></div><div class="task-metric"><span>در انتظار</span><strong>${fnum(open)}</strong></div><div class="task-metric"><span>تکرارشونده</span><strong>${fnum(recurring)}</strong></div></section>
+    <section class="card task-board">
+      <div class="task-toolbar"><div class="search-control"><span aria-hidden="true">⌕</span><input id="taskSearch" placeholder="جست‌وجوی تسک‌ها..." value="${htmlEscape(search)}" aria-label="جست‌وجوی تسک‌ها"></div>
+      <div class="filter-pills">${[['all','همه'],['pending','در انتظار'],['routine','تکرارشونده'],['project','دانشگاه'],['done','انجام‌شده']].map(([id,label])=>`<button data-filter="${id}" class="${taskFilter===id?'active':''}">${label}</button>`).join('')}</div></div>
+      <div class="board-subhead"><strong>${fnum(filtered.length)} تسک</strong><span>مرتب‌شده براساس ددلاین</span></div>
+      <div class="task-list" id="taskList">${filtered.length ? filtered.map(t=>`<article class="task-card">${renderTaskRow(t,t.type==='once'?t.planned||selectedDate:selectedDate)}${t.notes?`<div class="task-notes">${htmlEscape(t.notes)}</div>`:''}${t.type==='weekly'?`<div class="task-notes">${t.repeatDays.map(i=>DOW[i]).join('، ')}</div>`:''}</article>`).join('') : `<div class="empty-state"><span class="empty-glyph">⌕</span><h3>تسکی پیدا نشد</h3><p>${search?'عبارت جست‌وجو را تغییر بده.':'این بخش هنوز تسکی ندارد.'}</p>${!search?'<button class="btn btn-primary" data-new-task>ساخت تسک</button>':''}</div>`}</div>
+    </section>
+  </div>`;
 }
 function weekDates() { return Array.from({ length: 7 }, (_, i) => addDays(shiftWeek(selectedDate), i)) }
-function renderProgress() { const dates = weekDates(), weekly = dates.reduce((a, d) => a + countDone(d), 0), total = dates.reduce((a, d) => a + dailyTasks(d).length, 0), moods = dates.filter(d => data.checkins[d]?.energy), avg = moods.length ? (moods.reduce((a, d) => a + data.checkins[d].energy, 0) / moods.length).toFixed(1) : '—'; return `<div class="grid3"><div class="card"><div class="eyebrow">XP کل</div><h2 style="font-size:31px;margin:8px 0">${fnum(xpTotal())}</h2><span class="tag purple">Level ${fnum(level())}</span></div><div class="card"><div class="eyebrow">تکمیل این هفته</div><h2 style="font-size:31px;margin:8px 0">${fnum(weekly)} / ${fnum(total)}</h2><span class="tag">${fnum(total ? Math.round(100 * weekly / total) : 0)}٪ از برنامه</span></div><div class="card"><div class="eyebrow">میانگین انرژی ثبت‌شده</div><h2 style="font-size:31px;margin:8px 0">${fnum(avg)} / ۵</h2><span class="tag teal">${fnum(moods.length)} روز ثبت</span></div></div><div class="progress-detail" style="margin-top:17px"><div class="card"><div class="section-title"><h2>روند هفتگی تسک‌ها</h2><span class="tag">${shortDate(dates[0])} – ${shortDate(dates[6])}</span></div>${renderMiniWeekBars()}<div class="hint">درصدها بر اساس تسک‌های برنامه‌ریزی‌شدهٔ هر روز است؛ نه کل زمان مفید یا کیفیت مطالعه.</div></div><div class="card"><div class="section-title"><h2>سنجش انرژی</h2></div>${dates.map(d => `<div class="barline"><span class="dayname">${dayName(d)}</span><div class="track"><div class="fill" style="width:${(data.checkins[d]?.energy || 0) * 20}%;background:linear-gradient(90deg,#48b9ad,#8ee4d0)"></div></div><span class="count">${data.checkins[d]?.energy ? fnum(data.checkins[d].energy) + '/۵' : '—'}</span></div>`).join('')}<div class="hint">این نمودار به تشخیص روزهای پُرانرژی و روزهایی که به استراحت نیاز داری کمک می‌کند.</div></div></div><div class="card" style="margin-top:17px"><h2 style="font-size:16px;margin:0 0 12px">پاداش‌های ساده و دوستانه</h2><div class="hint">هر ۲۰۰ XP یک لِول؛ تیک‌زدن تسک‌های انجام‌شده XP می‌دهد. از دست‌دادن یک روز جریمه ندارد.</div><div class="meter" style="height:13px"><span style="width:${xpIntoLevel() / 2}%"></span></div><div class="rowline"><b>Level ${fnum(level())}</b><span class="muted">${fnum(xpIntoLevel())} / ۲۰۰ XP</span><b>Level ${fnum(level() + 1)}</b></div></div>` }
-function settingsTabCard(id, icon, title, desc, extra = '') {
-  return `<button class="settings-tab-card ${settingsTab === id ? 'active' : ''}" data-settings-tab="${id}"><span class="settings-tab-icon">${icon}</span><span class="settings-tab-copy"><b>${title}</b><small>${desc}</small></span>${extra}</button>`
+function renderProgress() {
+  const dates=weekDates(), weekly=dates.reduce((a,d)=>a+countDone(d),0), total=dates.reduce((a,d)=>a+dailyTasks(d).length,0);
+  const moods=dates.filter(d=>data.checkins[d]?.energy);
+  const avg=moods.length?(moods.reduce((a,d)=>a+data.checkins[d].energy,0)/moods.length).toFixed(1):'—';
+  return `<div class="progress-screen"><div class="task-page-heading"><div><span class="section-kicker">مسیر پیشرفت</span><h2>هر قدم حساب می‌شه</h2><p>نگاهی به روند این هفته و امتیازهایی که جمع کردی.</p></div></div>
+    <div class="progress-stats"><div class="card metric-card"><span class="metric-icon metric-violet">✦</span><span class="metric-label">امتیاز کل</span><strong>${fnum(xpTotal())} <small>XP</small></strong><span class="metric-foot">سطح ${fnum(level())}</span></div>
+    <div class="card metric-card"><span class="metric-icon metric-cyan">✓</span><span class="metric-label">انجام‌شدهٔ این هفته</span><strong>${fnum(weekly)} <small>/ ${fnum(total)}</small></strong><span class="metric-foot">${fnum(total?Math.round(100*weekly/total):0)}٪ از برنامه</span></div>
+    <div class="card metric-card"><span class="metric-icon metric-amber">♡</span><span class="metric-label">میانگین انرژی</span><strong>${fnum(avg)} <small>/ ۵</small></strong><span class="metric-foot">${fnum(moods.length)} روز ثبت</span></div></div>
+    <div class="progress-detail"><section class="card section-card"><div class="section-title"><h2>کارهای هفته</h2><span class="tag">${shortDate(dates[0])} — ${shortDate(dates[6])}</span></div>${renderMiniWeekBars()}</section>
+    <section class="card section-card"><div class="section-title"><h2>انرژی هفته</h2></div>${dates.map(d=>`<div class="barline"><span class="dayname">${dayName(d)}</span><div class="track"><div class="fill energy-fill" style="width:${(data.checkins[d]?.energy||0)*20}%"></div></div><span class="count">${data.checkins[d]?.energy?fnum(data.checkins[d].energy)+'/۵':'—'}</span></div>`).join('')}</section></div>
+    <div class="card level-panel"><div class="section-title"><h2>مسیر سطح بعدی</h2><span class="tag purple">Level ${fnum(level())}</span></div><div class="meter"><span style="width:${xpIntoLevel()/2}%"></span></div><div class="rowline"><span>${fnum(xpIntoLevel())} از ۲۰۰ XP</span><strong>${fnum(200-xpIntoLevel())} XP تا سطح ${fnum(level()+1)}</strong></div></div>
+  </div>`;
+}
+
+function settingsTabCard(id, icon, title) {
+  return `<button class="settings-tab-card ${settingsTab===id?'active':''}" data-settings-tab="${id}" aria-pressed="${settingsTab===id}"><span class="settings-tab-icon">${icon}</span><span>${title}</span></button>`;
 }
 function renderSettings() {
-  const isCloud = !!cloudReady;
-  const syncStatusText = isCloud && cloudSyncOk ? 'همگام است' : isCloud ? 'متصل؛ در انتظار همگام‌سازی' : syncConf.tokenBox ? 'قفل شده' : 'نیاز به تنظیم';
-  const syncStatusTone = isCloud && cloudSyncOk ? 'teal' : isCloud ? 'purple' : syncConf.tokenBox ? 'orange' : 'red';
-  const syncMessage = htmlEscape(cloudMessage || (syncConf.tokenBox ? 'اتصال ذخیره شده؛ عبارت عبور را بنویس و «باز کردن اتصال» را بزن.' : 'اول یک مخزن Private با فایل README بساز و توکن محدود به همان مخزن را وارد کن.'));
-  const autoUnlockBox = syncConf.autoUnlockError
-    ? `<div class="notice neutral" role="status">⚠ ورود خودکار در بازشدن قبلی موفق نشد: ${htmlEscape(syncConf.autoUnlockError)}. یک بار اتصال را دستی باز کن.</div>`
-    : syncConf.rememberDevice
-      ? `<div class="notice neutral" role="status">✓ ورود خودکار روی این دستگاه فعال است؛ تا پایان دورهٔ ۳۰روزه.</div>`
-      : '';
-
-  const sections = {
-    appearance: `
-      <div class="card settings-panel">
-        <div class="section-title"><div><h2>ظاهر و تجربهٔ کاربری</h2><div class="hint">ظاهر برنامه را ساده‌تر و مناسب دستگاهت نگه دار.</div></div></div>
-        <div class="setting-stack">
-          <div class="setting-row boxed">
-            <div>
-              <b>پوستهٔ نمایش</b>
-              <div class="hint">می‌توانی بین تم تیره و روشن جابه‌جا شوی. تغییر به‌صورت محلی ذخیره می‌شود.</div>
-            </div>
-            <div class="tabs compact-tabs">
-              <button data-theme="dark" class="${data.theme === 'dark' ? 'active' : ''}">تیره</button>
-              <button data-theme="light" class="${data.theme === 'light' ? 'active' : ''}">روشن</button>
-            </div>
-          </div>
-          <div class="settings-duo">
-            <div class="mini-card">
-              <span class="mini-label">فونت روی لپ‌تاپ</span>
-              <b>سیستم‌فونت ساده‌تر</b>
-              <div class="hint">برای دسکتاپ از فونتی مینیمال‌تر استفاده می‌شود تا صفحه حرفه‌ای‌تر به‌نظر برسد.</div>
-            </div>
-            <div class="mini-card">
-              <span class="mini-label">فونت روی موبایل</span>
-              <b>وَزیرمتن برای خوانایی بهتر</b>
-              <div class="hint">روی آیفون و صفحه‌های کوچک، فونت قبلی حفظ شده تا خواندن فارسی راحت بماند.</div>
-            </div>
-          </div>
-          <div class="notice neutral">در این نسخه، فاصله‌ها، اندازهٔ دکمه‌ها و فیلدها یکدست‌تر شده‌اند تا صفحهٔ تنظیمات شلوغ و ناهماهنگ نباشد.</div>
+  const isCloud=!!cloudReady;
+  const status=isCloud&&cloudSyncOk?'همگام است':isCloud?'در انتظار همگام‌سازی':syncConf.tokenBox?'قفل شده':'اتصال تنظیم نشده';
+  const statusStyle=isCloud&&cloudSyncOk?'good':isCloud?'pending':'offline';
+  const cloudText=htmlEscape(cloudMessage||(isCloud?(cloudSyncOk?'داده‌ها با مخزن خصوصی هماهنگ‌اند.':'اتصال برقرار است؛ در انتظار همگام‌سازی.'):syncConf.tokenBox?'اتصال قفل است. برای بازکردن عبارت عبور را وارد کن.':'برای شروع، مخزن خصوصی GitHub را متصل کن.'));
+  const hasError=!!syncConf.autoUnlockError;
+  const panel={
+    appearance:`<div class="card settings-panel"><div class="settings-heading"><h2>ظاهر برنامه</h2></div>
+      <div class="setting-line"><div><b>حالت نمایش</b><small>رنگ‌بندی برنامه</small></div><div class="theme-switch"><button data-theme="dark" class="${data.theme==='dark'?'active':''}" aria-pressed="${data.theme==='dark'}">☾ تیره</button><button data-theme="light" class="${data.theme==='light'?'active':''}" aria-pressed="${data.theme==='light'}">☼ روشن</button></div></div>
+    </div>`,
+    sync:`<div class="card settings-panel">
+      <div class="settings-heading"><div><h2>همگام‌سازی</h2><p>اطلاعاتت روی دستگاه‌ها هماهنگ می‌ماند.</p></div><span class="sync-status ${statusStyle}"><span class="sync-status-dot"></span>${status}</span></div>
+      <div class="sync-spotlight"><div class="sync-spotlight-icon">☁</div><div><strong>${isCloud?'اتصال GitHub فعال است':syncConf.tokenBox?'اتصال نیاز به بازکردن دارد':'اتصال به GitHub'}</strong><span>مخزن خصوصی: ${htmlEscape(syncConf.owner||'yckta')} / ${htmlEscape(syncConf.repo||'momentum-data')}</span></div></div>
+      <p class="sync-message" id="cloudMessage" role="status">${cloudText}</p>
+      ${hasError?`<p class="notice">خطای ورود خودکار: ${htmlEscape(syncConf.autoUnlockError)}</p>`:''}
+      <div class="sync-primary-actions">
+        <button class="btn btn-primary" data-cloud-pull ${!isCloud?'disabled':''}>⟳ همگام‌سازی الآن</button>
+        ${!isCloud&&syncConf.tokenBox?'<button class="btn" data-cloud-login>باز کردن اتصال</button>':''}
+      </div>
+      <div class="setting-line remember-line"><div><b>ورود خودکار</b><small>به خاطر سپردن این دستگاه برای ۳۰ روز</small></div><label class="toggle-switch" aria-label="ورود خودکار"><input type="checkbox" id="rememberDevice" ${syncConf.rememberDevice?'checked':''}><span></span></label></div>
+      ${syncConf.rememberDevice?'<div class="setting-note">ورود خودکار روی این دستگاه روشن است.</div>':''}
+      <details class="setting-disclosure" ${!syncConf.tokenBox||!isCloud?'open':''}><summary>تنظیمات اتصال <span class="disclosure-chevron">⌄</span></summary>
+        <div class="sync-config-form">
+          <div class="sync-form-grid"><div class="form-group"><label for="gitOwner">نام کاربری GitHub</label><input id="gitOwner" dir="ltr" placeholder="username" autocomplete="off" value="${htmlEscape(syncConf.owner||'yckta')}"></div>
+          <div class="form-group"><label for="gitRepo">مخزن خصوصی</label><input id="gitRepo" dir="ltr" placeholder="momentum-data" autocomplete="off" value="${htmlEscape(syncConf.repo||'momentum-data')}"></div>
+          <div class="form-group full"><label for="gitToken">توکن دسترسی GitHub</label><input id="gitToken" type="password" dir="ltr" autocomplete="off" placeholder="${syncConf.tokenBox?'توکن قبلاً ذخیره شده':'Fine-grained PAT'}"></div>
+          <div class="form-group full"><label for="gitPass">عبارت عبور رمزگذاری</label><input id="gitPass" type="password" dir="ltr" autocomplete="off" placeholder="عبارت عبور اتصال"></div></div>
+          <div class="sync-config-actions"><button class="btn btn-primary" data-cloud-save>ذخیرهٔ اتصال</button><button class="btn" data-cloud-login ${!syncConf.tokenBox?'disabled':''}>باز کردن اتصال</button><button class="btn" data-forget-device ${!syncConf.rememberDevice?'disabled':''}>خاموش‌کردن ورود خودکار</button><button class="btn btn-ghost" data-cloud-logout ${!isCloud?'disabled':''}>قفل اتصال</button></div>
         </div>
-      </div>`,
-    backup: `
-      <div class="card settings-panel">
-        <div class="section-title"><div><h2>پشتیبان و انتقال داده</h2><div class="hint">برای خیال راحت، همیشه یک نسخه از اطلاعاتت داشته باش.</div></div><span class="tag">JSON</span></div>
-        <div class="setting-stack">
-          <p class="muted" style="margin:0">تمام تسک‌ها، برنامهٔ هفتگی، پیشرفت‌ها و حال‌وهوای ثبت‌شده را می‌توانی در یک فایل JSON ذخیره کنی. حتی با فعال بودن همگام‌سازی هم بهتر است هر از گاهی پشتیبان بگیری.</p>
-          <div class="settings-actions">
-            <button class="btn btn-primary" data-export>↓ خروجی پشتیبان</button>
-            <button class="btn" data-import>↑ بازیابی فایل</button>
-            <input style="display:none" type="file" id="importFile" accept=".json,application/json">
-          </div>
-          <div class="notice neutral">بستن عادی مرورگر اطلاعات محلی را پاک نمی‌کند؛ اما پاک‌کردن حافظهٔ سایت یا داده‌های Safari / Chrome می‌تواند آن‌ها را حذف کند.</div>
-        </div>
-      </div>`,
-    sync: `
-      <div class="card settings-panel">
-        <div class="section-title"><div><h2>همگام‌سازی خصوصی با GitHub</h2><div class="hint">داده‌ها فقط در مخزن خصوصی، رمزگذاری‌شده و جدا از مخزن عمومی ذخیره می‌شوند.</div></div><span class="tag ${syncStatusTone}">${syncStatusText}</span></div>
-        <div class="sync-summary">
-          <div class="mini-card emphasis">
-            <span class="mini-label">وضعیت فعلی</span>
-            <b>${syncStatusText}</b>
-            <div class="hint" id="cloudMessage">${syncMessage}</div>
-          </div>
-          <div class="mini-card">
-            <span class="mini-label">مخزن داده</span>
-            <b>${htmlEscape(syncConf.repo || 'momentum-data')}</b>
-            <div class="hint">مالک: ${htmlEscape(syncConf.owner || 'yckta')}</div>
-          </div>
-        </div>
-        <div class="sync-form-grid">
-          <div class="form-group"><label>نام کاربری GitHub</label><input id="gitOwner" dir="ltr" placeholder="username" autocomplete="off" value="${htmlEscape(syncConf.owner || 'yckta')}"></div>
-          <div class="form-group"><label>نام مخزن خصوصی داده</label><input id="gitRepo" dir="ltr" placeholder="momentum-data" autocomplete="off" value="${htmlEscape(syncConf.repo || 'momentum-data')}"></div>
-          <div class="form-group full"><label>Fine-grained PAT (فقط مخزن داده، Contents: Read and write)</label><input id="gitToken" type="password" dir="ltr" autocomplete="off" placeholder="${syncConf.tokenBox ? 'توکن قبلاً رمزگذاری و ذخیره شده؛ نیازی به ورود دوباره نیست' : 'توکن GitHub را اینجا وارد کن'}"><div class="hint">توکن را در چت، Repository عمومی یا فایل عمومی قرار نده. فقط نسخهٔ رمزگذاری‌شدهٔ آن روی همین دستگاه ذخیره می‌شود.</div></div>
-          <div class="form-group full"><label>عبارت عبور اختصاصی رمزگذاری (حداقل ۱۰ نویسه)</label><input id="gitPass" type="password" dir="ltr" autocomplete="off" placeholder="این عبارت با رمز حساب GitHub متفاوت باشد"><div class="hint">برای بازکردن اتصال در هر دستگاه لازم است. در صورت گم‌کردنش، بازیابی داده‌های رمزگذاری‌شده ممکن نیست.</div></div>
-          <div class="form-group full trusted-device-box">
-            <label class="check-card"><input type="checkbox" id="rememberDevice" ${syncConf.rememberDevice ? 'checked' : ''}><span><b>مرا در این دستگاه به خاطر بسپار (۳۰ روز)</b><small>فقط برای لپ‌تاپ و آیفون شخصی دارای قفل صفحه. ورود خودکار با کلید غیرقابل‌استخراج در IndexedDB این دستگاه انجام می‌شود.</small></span></label>
-          </div>
-        </div>
-        ${autoUnlockBox}
-        <div class="settings-actions split-actions">
-          <button class="btn btn-primary" data-cloud-save>ذخیرهٔ اتصال و همگام‌سازی</button>
-          <button class="btn" data-cloud-login ${!syncConf.tokenBox ? 'disabled' : ''}>باز کردن اتصال</button>
-          <button class="btn" data-cloud-pull ${!isCloud ? 'disabled' : ''}>همگام‌سازی الآن</button>
-          <button class="btn" data-forget-device ${!syncConf.rememberDevice ? 'disabled' : ''}>خاموش‌کردن ورود خودکار</button>
-          <button class="btn btn-danger" data-cloud-logout ${!isCloud ? 'disabled' : ''}>قفل‌کردن اتصال</button>
-        </div>
-        <div class="subcard warning-box">
-          <div class="section-title"><h2>حل تعارض و جایگزینی داده</h2><span class="tag orange">با احتیاط</span></div>
-          <div class="hint" style="margin-bottom:10px">اگر دو دستگاه هم‌زمان تغییر داده باشند، قبل از جایگزینی از داده‌ها پشتیبان بگیر. برای دریافت تغییرات گوشی، اپ را دوباره باز کن یا «همگام‌سازی الآن» بزن.</div>
-          <div class="settings-actions">
-            <button class="btn" data-cloud-download ${!isCloud ? 'disabled' : ''}>جایگزینی این دستگاه از ابر</button>
-            <button class="btn btn-danger" data-cloud-upload ${!isCloud ? 'disabled' : ''}>جایگزینی ابر از این دستگاه</button>
-          </div>
-        </div>
-      </div>`,
-    advanced: `
-      <div class="card settings-panel">
-        <div class="section-title"><div><h2>تنظیمات تکمیلی</h2><div class="hint">بخش‌هایی که کمتر استفاده می‌کنی، اینجا جمع شده‌اند تا صفحه شلوغ نشود.</div></div></div>
-        <div class="setting-stack">
-          <div class="setting-row boxed">
-            <div>
-              <b>اعلان ددلاین</b>
-              <div class="hint">هشدار داخل برنامه فعال است. اعلان پس‌زمینه و نوتیفیکیشن سیستمی هنوز اضافه نشده‌اند.</div>
-            </div>
-            <span class="tag orange">نسخهٔ آینده</span>
-          </div>
-          <div class="subcard danger-box">
-            <div class="setting-row compact-start">
-              <div>
-                <b>شروع دوباره</b>
-                <div class="hint">همهٔ داده‌های محلی را حذف می‌کند. اگر متصل باشی و بعداً ابر را جایگزین کنی، ممکن است اطلاعات روی GitHub هم بازنویسی شوند.</div>
-              </div>
-              <button class="btn btn-danger" data-reset>بازنشانی کامل</button>
-            </div>
-          </div>
-        </div>
-      </div>`
+      </details>
+      <details class="setting-disclosure dangerous-disclosure"><summary>مدیریت تعارض داده‌ها <span class="disclosure-chevron">⌄</span></summary><div class="sync-config-form"><p class="muted">اگر تغییرات دو دستگاه با هم تداخل پیدا کرده‌اند، ابتدا خروجی پشتیبان بگیر.</p>
+        <div class="sync-config-actions"><button class="btn" data-cloud-download ${!isCloud?'disabled':''}>دریافت نسخهٔ ابری</button><button class="btn btn-danger" data-cloud-upload ${!isCloud?'disabled':''}>جایگزینی ابر با این دستگاه</button></div></div></details>
+    </div>`,
+    backup:`<div class="card settings-panel"><div class="settings-heading"><div><h2>پشتیبان‌گیری</h2><p>یک نسخه از تسک‌ها و پیشرفتت نگه دار.</p></div></div>
+      <div class="backup-tile"><span class="backup-tile-icon">↓</span><div><strong>فایل پشتیبان</strong><small>دریافت یا بازیابی اطلاعات در قالب JSON</small></div></div>
+      <div class="sync-primary-actions"><button class="btn btn-primary" data-export>دریافت پشتیبان</button><button class="btn" data-import>بازیابی فایل</button><input style="display:none" type="file" id="importFile" accept=".json,application/json"></div>
+    </div>`,
+    advanced:`<div class="card settings-panel"><div class="settings-heading"><h2>سایر تنظیمات</h2></div>
+      <div class="setting-line"><div><b>اعلان ددلاین</b><small>یادآوری‌های داخل برنامه</small></div><span class="tag">داخل برنامه</span></div>
+      <details class="setting-disclosure dangerous-disclosure"><summary>حذف اطلاعات <span class="disclosure-chevron">⌄</span></summary><div class="sync-config-form"><p class="muted">با بازنشانی، تسک‌ها و پیشرفت‌های محلی حذف می‌شوند.</p><button class="btn btn-danger" data-reset>بازنشانی اطلاعات</button></div></details>
+    </div>`
   };
-
-  return `<div class="settings-shell">
-    <div class="card settings-hero">
-      <div>
-        <div class="eyebrow">تنظیماتِ تمیزتر و ساده‌تر</div>
-        <h2>تنظیمات Momentum</h2>
-        <p>به‌جای یک صفحهٔ شلوغ، همه‌چیز در چهار بخش جمع شده: ظاهر، پشتیبان، همگام‌سازی و تنظیمات تکمیلی.</p>
-      </div>
-      <div class="settings-overview">
-        <div class="overview-pill"><span>پوسته</span><b>${data.theme === 'dark' ? 'تیره' : 'روشن'}</b></div>
-        <div class="overview-pill"><span>ذخیره‌سازی</span><b>${syncConf.tokenBox ? 'محلی + GitHub' : 'فقط محلی'}</b></div>
-        <div class="overview-pill"><span>وضعیت ابر</span><b>${syncStatusText}</b></div>
-      </div>
-    </div>
-    <div class="settings-layout">
-      <aside class="card settings-sidebar-card">
-        <div class="settings-sidebar-head"><b>بخش‌ها</b><small>برای تمرکز روی یک موضوع، از این منو استفاده کن.</small></div>
-        <div class="settings-nav-grid">
-          ${settingsTabCard('appearance', 'Aa', 'ظاهر و تجربه', 'تم، فونت و هماهنگی بصری')}
-          ${settingsTabCard('backup', '⤓', 'پشتیبان', 'خروجی و بازیابی فایل داده')}
-          ${settingsTabCard('sync', '☁', 'همگام‌سازی', 'اتصال GitHub و ورود خودکار', `<span class="tag ${syncStatusTone}">${syncStatusText}</span>`)}
-          ${settingsTabCard('advanced', '⚙', 'تکمیلی', 'بازنشانی و بخش‌های کم‌استفاده')}
-        </div>
-      </aside>
-      <section class="settings-content-area">${sections[settingsTab] || sections.sync}</section>
-    </div>
-  </div>`
+  return `<div class="settings-shell"><div class="settings-layout"><nav class="settings-nav" aria-label="دسته‌بندی تنظیمات">
+      ${settingsTabCard('appearance','◐','ظاهر')}${settingsTabCard('sync','☁','همگام‌سازی')}${settingsTabCard('backup','↓','پشتیبان‌گیری')}${settingsTabCard('advanced','⚙','سایر موارد')}
+    </nav><section class="settings-content-area">${panel[settingsTab]||panel.sync}</section></div></div>`;
 }
 function formField(label, input, full = false) { return `<div class="form-group ${full ? 'full' : ''}"><label>${label}</label>${input}</div>` }
 function openTaskModal(id = null, date = '') {  

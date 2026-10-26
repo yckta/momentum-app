@@ -52,4 +52,13 @@ const niceCategory = c => htmlEscape(c || 'سایر');
 const niceDate = s => s ? longDate(s) : 'نامشخص';
 const formatTime = t => fnum(t || '');
 const countDone = (date) => dailyTasks(date).filter(t => isDone(t, date)).length;
-function iconNav(v) { return VIEWS.map(([id, name, icon]) => `<button data-view="${id}" class="${view === id ? 'active' : ''}"><span class="navicon">${icon}</span><span>${name}</span></button>`).join('') }
+const NAV_ICON_PATHS = {
+  dashboard:'<rect x="3" y="3" width="7" height="7" rx="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.8"/>',
+  planner:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+  tasks:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8 12 3 3 5-6"/>',
+  progress:'<path d="M4 20V12m5 8V7m5 13v-5m5 5V4" stroke-linecap="round"/>',
+  settings:'<path d="M12 3a2 2 0 0 1 2 2v.3a7.5 7.5 0 0 1 2 1.1l.3-.17a2 2 0 0 1 2.7.73l.8 1.38a2 2 0 0 1-.73 2.73l-.27.16a7.9 7.9 0 0 1 0 2.3l.27.16a2 2 0 0 1 .73 2.73l-.8 1.38a2 2 0 0 1-2.7.73l-.3-.17a7.5 7.5 0 0 1-2 1.1V20a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-.3a7.5 7.5 0 0 1-2-1.1l-.3.17a2 2 0 0 1-2.7-.73l-.8-1.38a2 2 0 0 1 .73-2.73l.27-.16a7.9 7.9 0 0 1 0-2.3l-.27-.16a2 2 0 0 1-.73-2.73l.8-1.38a2 2 0 0 1 2.7-.73l.3.17a7.5 7.5 0 0 1 2-1.1V5a2 2 0 0 1 2-2z"/><circle cx="11.5" cy="12.5" r="2.6"/>'
+};
+function navIcon(id){return `<svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICON_PATHS[id]||''}</svg>`}
+function iconNav(){return VIEWS.map(([id,name])=>`<button data-view="${id}" class="${view===id?'active':''}" aria-current="${view===id?'page':'false'}"><span class="navicon">${navIcon(id)}</span><span>${name}</span></button>`).join('')}
+
