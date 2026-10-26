@@ -35,7 +35,7 @@ let repoSha = syncConf.knownSha || null, gitToken = '', gitPassword = '', cloudM
 let gitDirty = localStorage.getItem(DIRTYKEY) === '1' || (!syncConf.knownSha && !data.pristine);
 function markGitDirty(flag) { gitDirty = !!flag; localStorage.setItem(DIRTYKEY, flag ? '1' : '0') }
 const store = () => { data.lastModified = Date.now(); data.pristine = false; localStorage.setItem(DBKEY, JSON.stringify(data)); markGitDirty(true); cloudSyncOk = false; if (cloudReady) scheduleUpload(); refreshStorageBadge() };
-function storageLabel() { return cloudReady ? (cloudSyncOk && !gitDirty ? '☁ در مخزن خصوصی ذخیره شد' : '⟳ ذخیره محلی؛ در انتظار همگام‌سازی') : syncConf.tokenBox ? '🔒 داده محلی؛ اتصال قفل است' : 'ذخیره روی این دستگاه' }
+function storageLabel() { return cloudReady ? (cloudSyncOk && !gitDirty ? '☁ در مخزن خصوصی ذخیره شد' : '⟳ ذخیره محلی؛ در انتظار همگام‌سازی') : syncConf.autoUnlockError ? '⚠ ورود خودکار انجام نشد' : syncConf.tokenBox ? '🔒 داده محلی؛ اتصال قفل است' : 'ذخیره روی این دستگاه' }
 function refreshStorageBadge() { const el = document.getElementById('storageStatus'); if (el) el.textContent = storageLabel() }
 
 const isDone = (t, date = selectedDate) => !!data.completions[t.id + '|' + (t.type === 'once' ? 'once' : date)];

@@ -31,7 +31,7 @@ const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[da
   if ('cloudUpload' in d) { forceCloudUpload(); return }
 }
 document.addEventListener('click', onClick);
-document.addEventListener('change', e => { const n = e.target; if (n.matches('[data-toggle]')) { const t = data.tasks.find(t => t.id === n.dataset.toggle); if (t) setDone(t, n.dataset.date, n.checked) } if (n.id === 'importFile') importBackup(n.files?.[0]); });
+document.addEventListener('change', e => { const n = e.target; if (n.id === 'rememberDevice') { onRememberDeviceToggle(n.checked); return; }  if (n.matches('[data-toggle]')) { const t = data.tasks.find(t => t.id === n.dataset.toggle); if (t) setDone(t, n.dataset.date, n.checked) } if (n.id === 'importFile') importBackup(n.files?.[0]); });
 document.addEventListener('input', e => { if (e.target.id === 'taskSearch') { const start = e.target.selectionStart; search = e.target.value; const list = document.getElementById('taskList'); if (list) { const tmp = document.createElement('div'); tmp.innerHTML = renderTasks(); list.innerHTML = tmp.querySelector('#taskList')?.innerHTML || ''; } } });
 document.getElementById('quickAdd').addEventListener('click', () => openTaskModal());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() });

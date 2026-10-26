@@ -20,24 +20,53 @@ function saveSyncState(sha, dirty) { repoSha = sha || null; syncConf.knownSha = 
 // be used by scripts running on this origin, so this is appropriate only for
 // the user's own screen-locked devices, not a shared computer.
 async function applyRememberChoice(shouldRemember, pass) {
-  if (shouldRemember && cloudSyncOk && !syncConflict) {
-    try {
-      await rememberUnlockOnDevice(pass, syncConf.owner, syncConf.repo);
-      syncConf.rememberDevice = true;
-      localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
-      return;
-    } catch (error) {
-      syncConf.rememberDevice = false;
-      localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
-      setCloudMsg('اتصال برقرار است، ولی ذخیرهٔ ورود خودکار ممکن نشد: ' + error.message);
-      return;
-    }
-  }
-  if (!shouldRemember) {
-    if (syncConf.rememberDevice) await forgetRememberedUnlock();
-    syncConf.rememberDevice = false;
+  if (shouldRemember) {
+    if (!cloudReady || !gitToken || !pass) throw Error('ابتدا اتصال را با عبارت عبور باز کن');
+    // Remembering login is a separate operation from a data-sync attempt.
+    // A temporary sync error or an existing sync conflict must not silently
+    // discard the user's trusted-device preference. Verify that the chosen
+    // data repository really is private before storing a reusable credential.
+    await verifyPrivateRepo();
+    await rememberUnlockOnDevice(pass, syncConf.owner, syncConf.repo);
+    syncConf.rememberDevice = true;
+    delete syncConf.autoUnlockError;
     localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+    return;
   }
+  // Revoke only this browser's ability to unlock automatically; do not touch
+  // the data repository or the user's locally encrypted GitHub access token.
+  if (syncConf.rememberDevice) await forgetRememberedUnlock();
+  syncConf.rememberDevice = false;
+  delete syncConf.autoUnlockError;
+  localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+}
+
+async function setRememberPreference(shouldRemember, pass) {
+  try {
+    await applyRememberChoice(shouldRemember, pass);
+    render();
+    toast(shouldRemember ? 'ورود خودکار روی این دستگاه ذخیره شد' : 'ورود خودکار خاموش شد');
+    return true;
+  } catch (error) {
+    // Keep the previously persisted state and make the problem visible.
+    syncConf.autoUnlockError = error?.message || 'خطای نامشخص هنگام ذخیره';
+    localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
+    render();
+    setCloudMsg('ورود خودکار ذخیره نشد: ' + syncConf.autoUnlockError);
+    toast('ورود خودکار ذخیره نشد؛ پیام تنظیمات را بررسی کن');
+    return false;
+  }
+}
+
+async function onRememberDeviceToggle(shouldRemember) {
+  if (!cloudReady || !gitPassword) {
+    if (shouldRemember) setCloudMsg('برای فعال‌کردن ورود خودکار، عبارت عبور را وارد کن و «باز کردن اتصال» را بزن.');
+    else setCloudMsg('برای خاموش‌کردن ورود خودکار، اتصال را باز کن یا از دکمهٔ حذف ورود خودکار استفاده کن.');
+    return;
+  }
+  // Once the connection is open, the preference is saved immediately when
+  // the checkbox changes. An additional "Save connection" click is not needed.
+  await setRememberPreference(shouldRemember, gitPassword);
 }
 
 async function saveCloudSettings() {
@@ -61,9 +90,10 @@ async function saveCloudSettings() {
     cloudSyncOk = false;
     setCloudMsg('در حال بررسی دسترسی به مخزن خصوصی…');
     await syncLatest();
-    if (!remember || cloudSyncOk) await applyRememberChoice(remember, pass);
-    render();
-    if (cloudSyncOk) toast(remember ? 'اتصال و ورود خودکار روی این دستگاه فعال شد' : 'همگام‌سازی خصوصی فعال شد');
+    // Even when the latest data sync reports a conflict or temporary error,
+    // persist trusted-device opt-in independently, with an explicit result.
+    await setRememberPreference(remember, pass);
+    if (cloudSyncOk) toast('همگام‌سازی خصوصی فعال شد');
   } catch (e) {
     cloudSyncOk = false;
     setCloudMsg(e.message || 'اتصال ناموفق');
@@ -83,8 +113,7 @@ async function cloudLogin() {
     cloudReady = true;
     cloudSyncOk = false;
     await syncLatest();
-    if (!remember || cloudSyncOk) await applyRememberChoice(remember, pass);
-    render();
+    await setRememberPreference(remember, pass);
     if (cloudSyncOk) toast('اتصال خصوصی باز شد');
   } catch (e) {
     setCloudMsg(e.message || 'اتصال ناموفق');
@@ -101,6 +130,8 @@ async function initializeRememberedDevice() {
     gitPassword = pass;
     cloudReady = true;
     cloudSyncOk = false;
+    delete syncConf.autoUnlockError;
+    localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
     render();
     // Network failure does not revoke the trusted device: local tasks remain
     // available and synchronization retries on focus / visibility / interval.
@@ -110,26 +141,19 @@ async function initializeRememberedDevice() {
     gitPassword = '';
     cloudReady = false;
     cloudSyncOk = false;
-    syncConf.rememberDevice = false;
+    // Retain the encrypted vault on transient IndexedDB errors. Previously
+    // a failed restore permanently deleted the stored credential without
+    // telling the user what went wrong.
+    syncConf.autoUnlockError = error?.message || 'خطای خواندن حافظهٔ دستگاه';
     localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
-    try { await forgetRememberedUnlock(); } catch (e) { console.warn('Could not clear trusted-device state', e); }
     render();
-    setCloudMsg('ورود خودکار غیرفعال شد: ' + error.message + '؛ اتصال را با عبارت عبور دوباره باز کن.');
+    setCloudMsg('ورود خودکار انجام نشد: ' + syncConf.autoUnlockError + '؛ با عبارت عبور اتصال را باز کن.');
   }
 }
 
 async function disableRememberedDevice() {
-  try {
-    await forgetRememberedUnlock();
-    syncConf.rememberDevice = false;
-    localStorage.setItem(CFGKEY, JSON.stringify(syncConf));
-    render();
-    setCloudMsg('ورود خودکار این دستگاه حذف شد. اتصال فعلی تا قفل‌شدن برنامه باز می‌ماند.');
-    toast('ورود خودکار غیرفعال شد');
-  } catch (error) {
-    setCloudMsg('حذف اطلاعات ورود خودکار ناموفق بود: ' + error.message);
-    toast('حذف ورود خودکار ناموفق بود');
-  }
+  const disabled = await setRememberPreference(false, gitPassword);
+  if (disabled) setCloudMsg('ورود خودکار این دستگاه حذف شد. اتصال فعلی تا قفل‌شدن برنامه باز می‌ماند.');
 }
 
 async function syncLatest() {  

@@ -77,3 +77,11 @@ node --check assets/app.js
 ## Licensing
 
 This public repository is not automatically open-source licensed. Choose and add an explicit license if you intend to allow reuse by others.
+
+## V5.1 — Trusted-device persistence correction
+
+- The remember-me checkbox is persisted immediately when the GitHub connection is unlocked.
+- When unlocking an existing connection, saving a trusted device is independent of task sync status.
+- Failure to persist or restore the device key is displayed to the user rather than silently resetting the preference.
+- Data, existing GitHub credentials, token scope, and encrypted cloud storage are unchanged.
+- Reminder: storing a decryptable credential in IndexedDB is a convenience feature, **not** protection against malicious same-origin scripts.

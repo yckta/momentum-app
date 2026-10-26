@@ -43,3 +43,7 @@ The app uses a restrictive Content Security Policy (CSP), plain DOM event handle
 ## Reporting security issues
 
 Do not file issues containing secrets. Revoke affected PATs and rotate the encryption passphrase after any suspected compromise. If personally identifying or academic schedule data has been committed to GitHub publicly, removing it from the latest revision alone is not sufficient to remove it from commit history.
+
+## Trusted-device troubleshooting (V5.1)
+
+The optional remember-me feature requires persistent IndexedDB and Web Crypto on a secure origin. The app verifies repository privacy before saving an unlock key. Network errors, IndexedDB private-browsing limits, and other failures are shown explicitly in Settings. Do not use private/incognito browsing for persistent auto-unlock. A script executing under the site's origin can use the stored non-extractable `CryptoKey`, so this feature must be enabled only on trusted personal devices.
