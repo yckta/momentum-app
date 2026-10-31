@@ -1,5 +1,5 @@
 function render() {  
-document.body.classList.toggle('light', data.theme === 'light'); document.getElementById('desktopNav').innerHTML = iconNav(); document.getElementById('mobileNav').innerHTML = iconNav(); document.getElementById('pageHeading').textContent = VIEWS.find(v => v[0] === view)[1]; document.getElementById('dateBadge').textContent = longDate(today()); refreshStorageBadge(); document.getElementById('sidebarProgress').innerHTML = `<small class="muted">پیشرفت شخصیتت</small><div class="rowline"><strong>Level ${fnum(level())}</strong><b>${fnum(xpTotal())} XP</b></div><div class="meter"><span style="width:${xpIntoLevel() / 2}%"></span></div><small class="muted">${fnum(200 - xpIntoLevel())} XP تا مرحلهٔ بعد</small>`;
+document.body.classList.toggle('light', data.theme === 'light'); document.getElementById('desktopNav').innerHTML = iconNav(); document.getElementById('mobileNav').innerHTML = iconNav(); document.getElementById('pageHeading').textContent = VIEWS.find(v => v[0] === view)[1]; document.getElementById('dateBadge').textContent = longDate(today()); document.getElementById('dateBadge').setAttribute('dir','rtl'); refreshStorageBadge(); document.getElementById('sidebarProgress').innerHTML = `<small class="muted">پیشرفت شخصیتت</small><div class="rowline"><strong>Level ${fnum(level())}</strong><b>${fnum(xpTotal())} XP</b></div><div class="meter"><span style="width:${xpIntoLevel() / 2}%"></span></div><small class="muted">${fnum(200 - xpIntoLevel())} XP تا مرحلهٔ بعد</small>`;
   const container = document.getElementById('content'); container.innerHTML = ({ dashboard: renderDashboard, planner: renderPlanner, tasks: renderTasks, progress: renderProgress, settings: renderSettings }[view])();
 }
 function renderTaskRow(t, date = selectedDate) {
@@ -22,6 +22,8 @@ function renderEvent(e) {
 function overlapAlert(date) { const e = dayEvents(date), warnings = []; for (let i = 1; i < e.length; i++) { if (e[i].start < e[i - 1].end) warnings.push(`تداخل «${e[i - 1].title}» و «${e[i].title}»`); else if (e[i].start === e[i - 1].end && e[i].kind !== e[i - 1].kind) warnings.push(`«${e[i - 1].title}» و «${e[i].title}» بدون فاصله هستند`) } return warnings }
 function renderDashboard() {
   const todayTasks = dailyTasks(selectedDate), completed = countDone(selectedDate);
+  const pendingTasks = todayTasks.filter(t => !isDone(t, selectedDate));
+  const completedTasks = todayTasks.filter(t => isDone(t, selectedDate));
   const pct = todayTasks.length ? Math.round(100 * completed / todayTasks.length) : 0;
   const left = todayTasks.length - completed;
   const mins = todayTasks.filter(t => !isDone(t,selectedDate)).reduce((sum,t)=>sum + (+t.duration || 0),0);
@@ -35,7 +37,7 @@ function renderDashboard() {
         <span class="hero-eyebrow">${d ? 'امروز، یک فرصت تازه' : htmlEscape(dayName(selectedDate)) + ' · ' + shortDate(selectedDate)}</span>
         <h2>${d ? 'قدم‌های کوچیک، پیشرفت‌های بزرگ.' : 'برنامهٔ ' + htmlEscape(dayName(selectedDate))}</h2>
         <p>برای شروع، فقط روی کار بعدی تمرکز کن.</p>
-        <button class="btn hero-action" data-new-date="${selectedDate}">＋ افزودن کار جدید</button>
+        <button class="btn hero-action" data-view="tasks">دیدن همهٔ کارها</button>
       </div>
       <div class="hero-progress" role="img" aria-label="${fnum(pct)} درصد کارهای این روز انجام شده">
         <div class="hero-ring" style="--progress:${pct}"><span><strong>${fnum(pct)}٪</strong><small>تکمیل امروز</small></span></div>
@@ -51,8 +53,11 @@ function renderDashboard() {
         <section class="card section-card">
           <div class="section-title"><div><span class="section-kicker">فهرست کارها</span><h2>کارهای این روز</h2></div>
             <div class="date-controls"><button class="iconbtn" data-step-day="-1" aria-label="روز قبل">‹</button><span>${shortDate(selectedDate)}</span><button class="iconbtn" data-step-day="1" aria-label="روز بعد">›</button><button class="btn btn-ghost" data-go-today>امروز</button></div></div>
-          ${todayTasks.length ? `<div class="dashboard-tasks">${todayTasks.map(t=>renderTaskRow(t,selectedDate)).join('')}</div>` : `<div class="empty-state"><span class="empty-glyph">☑</span><h3>برنامه‌ات هنوز خالیه</h3><p>یک کار کوچیک برای این روز اضافه کن.</p><button class="btn btn-primary" data-new-date="${selectedDate}">افزودن اولین کار</button></div>`}
-          ${todayTasks.length ? `<button class="text-action" data-new-date="${selectedDate}">＋ افزودن کار</button>` : ''}
+          <div class="dashboard-tasks task-list-viewport" aria-label="فهرست کارهای روز">
+            ${pendingTasks.length ? pendingTasks.map(t => renderTaskRow(t, selectedDate)).join('') : '<div class="quiet-empty">کار انجام‌نشده‌ای برای این روز نداری.</div>'}
+            <div class="task-add-row"><button class="btn btn-add-inline" data-pick-date="${selectedDate}"><span aria-hidden="true">＋</span> افزودن از تسک‌های باز</button></div>
+            ${completedTasks.length ? `<div class="task-group-title"><span>انجام‌شده</span><span class="tag teal">${fnum(completedTasks.length)}</span></div>${completedTasks.map(t => renderTaskRow(t, selectedDate)).join('')}` : ''}
+          </div>
         </section>
         <section class="card section-card">
           <div class="section-title"><div><span class="section-kicker">مهلت‌ها</span><h2>ددلاین‌های پیش رو</h2></div><button class="text-action" data-view="tasks">مشاهدهٔ همه</button></div>
@@ -95,29 +100,51 @@ function renderPlanner() {
         ${ts.map(t=>`<button class="calendar-item taskitem ${isDone(t,d)?'doneitem':''}" data-edit="${t.id}" title="ویرایش تسک"><span class="calendar-time">${isDone(t,d)?'✓ انجام شد':t.duration?fnum(t.duration)+' دقیقه':'تسک'}</span><span>${htmlEscape(t.title)}</span></button>`).join('')}
         ${overlapAlert(d).length?'<span class="mini-alert">⚠ تداخل برنامه</span>':''}
         </div>
-        <button class="add-day" data-new-date="${d}">＋ افزودن</button>
+        <button class="add-day" data-pick-date="${d}">＋ افزودن کار</button>
       </div>`;
     }).join('')}
     </div></section>
     <div class="planner-legend"><span><i class="legend-marker marker-event"></i> رویداد ثابت</span><span><i class="legend-marker marker-task"></i> تسک</span><span><i class="legend-marker marker-done"></i> انجام‌شده</span></div>
   </div>`;
 }
+function taskCard(t) {
+  const date = t.type === 'once' ? t.planned || selectedDate : selectedDate;
+  return `<article class="task-card">${renderTaskRow(t, date)}${t.notes ? `<div class="task-notes">${htmlEscape(t.notes)}</div>` : ''}${t.type === 'weekly' ? `<div class="task-notes">${t.repeatDays.map(i => DOW[i]).join('، ')}</div>` : ''}</article>`;
+}
+function tasksMatchingFilter() {
+  return data.tasks.filter(t => {
+    const hit = (t.title + ' ' + (t.notes || '') + ' ' + (t.category || '')).toLowerCase().includes(search.toLowerCase());
+    const done = isDone(t, selectedDate);
+    return hit && (taskFilter === 'all' ||
+      (taskFilter === 'routine' ? t.type !== 'once' :
+       taskFilter === 'project' ? t.category === 'دانشگاه' || t.category === 'دستیار آموزشی' :
+       taskFilter === 'pending' ? !done :
+       taskFilter === 'done' ? done : true));
+  }).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') ||
+      ['urgent', 'high', 'normal', 'low'].indexOf(a.priority) - ['urgent', 'high', 'normal', 'low'].indexOf(b.priority));
+}
+function renderTaskListContent(filtered) {
+  const pending = filtered.filter(t => !isDone(t, selectedDate));
+  const completed = filtered.filter(t => isDone(t, selectedDate));
+  const showAdd = !search.trim() && taskFilter !== 'done';
+  if (!filtered.length && !showAdd) return `<div class="empty-state"><span class="empty-glyph">⌕</span><h3>تسکی پیدا نشد</h3><p>جست‌وجو یا فیلتر را تغییر بده.</p></div>`;
+  return `${pending.length ? pending.map(taskCard).join('') : (completed.length ? '' : '<div class="quiet-empty">هنوز تسک بازی در این بخش ثبت نشده.</div>')}
+    ${showAdd ? '<div class="task-add-row"><button class="btn btn-add-inline" data-new-task><span aria-hidden="true">＋</span> افزودن تسک جدید</button></div>' : ''}
+    ${completed.length ? `<div class="task-group-title"><span>انجام‌شده</span><span class="tag teal">${fnum(completed.length)}</span></div>${completed.map(taskCard).join('')}` : ''}`;
+}
 function renderTasks() {
-  const total=data.tasks.length;
-  const open=data.tasks.filter(t=>t.type==='once'&&!isDone(t)).length;
-  const recurring=data.tasks.filter(t=>t.type!=='once').length;
-  const filtered=data.tasks.filter(t=>{
-    const hit=(t.title+' '+t.notes+' '+t.category).toLowerCase().includes(search.toLowerCase());
-    return hit && (taskFilter==='all'||(taskFilter==='routine'?t.type!=='once':taskFilter==='project'?t.category==='دانشگاه'||t.category==='دستیار آموزشی':taskFilter==='pending'?t.type==='once'&&!isDone(t):taskFilter==='done'?t.type==='once'&&isDone(t):true));
-  }).sort((a,b)=>(a.type==='once'&&b.type!=='once'?-1:a.type!=='once'&&b.type==='once'?1:0)||(a.due||'9999').localeCompare(b.due||'9999'));
+  const total = data.tasks.length;
+  const open = data.tasks.filter(t => !isDone(t, selectedDate)).length;
+  const recurring = data.tasks.filter(t => t.type !== 'once').length;
+  const filtered = tasksMatchingFilter();
   return `<div class="tasks-screen">
     <section class="task-page-heading"><div><span class="section-kicker">برنامه‌ریزی شخصی</span><h2>همهٔ کارها</h2><p>کارهای روزمره، پروژه‌ها و هدف‌هات یک‌جا.</p></div></section>
     <section class="task-metrics" aria-label="آمار تسک‌ها"><div class="task-metric"><span>کل تسک‌ها</span><strong>${fnum(total)}</strong></div><div class="task-metric"><span>در انتظار</span><strong>${fnum(open)}</strong></div><div class="task-metric"><span>تکرارشونده</span><strong>${fnum(recurring)}</strong></div></section>
     <section class="card task-board">
       <div class="task-toolbar"><div class="search-control"><span aria-hidden="true">⌕</span><input id="taskSearch" placeholder="جست‌وجوی تسک‌ها..." value="${htmlEscape(search)}" aria-label="جست‌وجوی تسک‌ها"></div>
       <div class="filter-pills">${[['all','همه'],['pending','در انتظار'],['routine','تکرارشونده'],['project','دانشگاه'],['done','انجام‌شده']].map(([id,label])=>`<button data-filter="${id}" class="${taskFilter===id?'active':''}">${label}</button>`).join('')}</div></div>
-      <div class="board-subhead"><strong>${fnum(filtered.length)} تسک</strong><span>مرتب‌شده براساس ددلاین</span></div>
-      <div class="task-list" id="taskList">${filtered.length ? filtered.map(t=>`<article class="task-card">${renderTaskRow(t,t.type==='once'?t.planned||selectedDate:selectedDate)}${t.notes?`<div class="task-notes">${htmlEscape(t.notes)}</div>`:''}${t.type==='weekly'?`<div class="task-notes">${t.repeatDays.map(i=>DOW[i]).join('، ')}</div>`:''}</article>`).join('') : `<div class="empty-state"><span class="empty-glyph">⌕</span><h3>تسکی پیدا نشد</h3><p>${search?'عبارت جست‌وجو را تغییر بده.':'این بخش هنوز تسکی ندارد.'}</p>${!search?'<button class="btn btn-primary" data-new-task>ساخت تسک</button>':''}</div>`}</div>
+      <div class="board-subhead"><strong id="boardCount">${fnum(filtered.length)} تسک</strong><span>کارهای باز در بالا · مرتب‌شده براساس ددلاین</span></div>
+      <div class="task-list task-list-viewport" id="taskList" aria-label="فهرست تسک‌ها">${renderTaskListContent(filtered)}</div>
     </section>
   </div>`;
 }
@@ -148,6 +175,7 @@ function renderSettings() {
   const panel={
     appearance:`<div class="card settings-panel"><div class="settings-heading"><h2>ظاهر برنامه</h2></div>
       <div class="setting-line"><div><b>حالت نمایش</b><small>رنگ‌بندی برنامه</small></div><div class="theme-switch"><button data-theme="dark" class="${data.theme==='dark'?'active':''}" aria-pressed="${data.theme==='dark'}">☾ تیره</button><button data-theme="light" class="${data.theme==='light'?'active':''}" aria-pressed="${data.theme==='light'}">☼ روشن</button></div></div>
+      <div class="setting-line"><div><b>صدای تکمیل تسک</b><small>پخش صدای کوتاه هنگام انجام کار</small></div><label class="toggle-switch"><input type="checkbox" id="completionSound" aria-label="فعال‌کردن صدای تکمیل تسک" ${isCompletionSoundEnabled()?'checked':''}><span></span></label></div>
     </div>`,
     sync:`<div class="card settings-panel">
       <div class="settings-heading"><div><h2>همگام‌سازی</h2><p>اطلاعاتت روی دستگاه‌ها هماهنگ می‌ماند.</p></div><span class="sync-status ${statusStyle}"><span class="sync-status-dot"></span>${status}</span></div>
@@ -184,6 +212,61 @@ function renderSettings() {
   return `<div class="settings-shell"><div class="settings-layout"><nav class="settings-nav" aria-label="دسته‌بندی تنظیمات">
       ${settingsTabCard('appearance','◐','ظاهر')}${settingsTabCard('sync','☁','همگام‌سازی')}${settingsTabCard('backup','↓','پشتیبان‌گیری')}${settingsTabCard('advanced','⚙','سایر موارد')}
     </nav><section class="settings-content-area">${panel[settingsTab]||panel.sync}</section></div></div>`;
+}
+// Reuse an unfinished task for a selected day without creating duplicates.
+// One-time tasks move to the chosen day; weekly tasks gain a one-day exception.
+function availableTasksForDate(date) {
+  return data.tasks.filter(t => !isDone(t, date) && !appearsOn(t, date))
+    .sort((a, b) => {
+      const pa = a.type === 'once' && !a.planned ? 0 : 1;
+      const pb = b.type === 'once' && !b.planned ? 0 : 1;
+      return pa - pb || (a.due || '9999').localeCompare(b.due || '9999') ||
+        a.title.localeCompare(b.title, 'fa');
+    });
+}
+function existingTaskPickerItems(date, query = '') {
+  const term = String(query).trim().toLocaleLowerCase('fa');
+  const items = availableTasksForDate(date).filter(t =>
+    (t.title + ' ' + (t.category || '') + ' ' + (t.notes || '')).toLocaleLowerCase('fa').includes(term));
+  return items.length ? items.map(t => {
+    const meta = t.type === 'once'
+      ? (t.planned ? 'انتقال از ' + shortDate(t.planned) : 'هنوز روز انجام ندارد')
+      : 'تکرارشونده · افزودن فقط برای این روز';
+    const due = t.type === 'once' && t.due ? ' · ددلاین ' + shortDate(t.due) : '';
+    return `<button type="button" class="existing-task-option" data-assign-task="${htmlEscape(t.id)}" data-assign-date="${date}">
+      <span class="existing-task-option-content"><strong>${htmlEscape(t.title)}</strong><small>${htmlEscape(t.category || 'شخصی')} · ${meta}${due}</small></span>
+      <span class="existing-task-option-arrow" aria-hidden="true">＋</span>
+    </button>`;
+  }).join('') : `<div class="quiet-empty" role="status">${term ? 'تسک بازی با این جست‌وجو پیدا نشد.' : 'تسک باز دیگری برای این روز وجود ندارد.'}</div>`;
+}
+function openExistingTaskPicker(date = selectedDate) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+  const dayLabel = date === today() ? 'امروز' : longDate(date);
+  activeModal = { type: 'existing-task-picker', date };
+  document.getElementById('modalRoot').innerHTML = `<div class="modal-wrap" data-close-overlay="1"><div class="modal existing-task-picker" role="dialog" aria-modal="true" aria-label="انتخاب تسک برای ${htmlEscape(dayLabel)}">
+    <div class="section-title"><div><h2>افزودن کار به ${htmlEscape(dayLabel)}</h2><p class="muted picker-subtitle">از تسک‌های تیک‌نخورده انتخاب کن.</p></div><button class="tiny" data-close-modal aria-label="بستن" style="font-size:23px">×</button></div>
+    <div class="search-control picker-search"><span aria-hidden="true">⌕</span><input id="existingTaskSearch" type="search" autocomplete="off" placeholder="جست‌وجو بین تسک‌های باز..." aria-label="جست‌وجو بین تسک‌های باز"></div>
+    <div class="existing-task-options" id="existingTaskOptions">${existingTaskPickerItems(date)}</div>
+    <div class="existing-task-picker-footer"><button class="btn btn-primary" data-new-date="${date}">＋ ساخت تسک جدید برای ${date === today() ? 'امروز' : 'این روز'}</button><button class="btn btn-ghost" data-close-modal>انصراف</button></div>
+  </div></div>`;
+  document.getElementById('existingTaskSearch')?.focus();
+}
+function addExistingTaskToDate(id, date) {
+  if (!activeModal || activeModal.type !== 'existing-task-picker' || date !== activeModal.date) return;
+  const task = availableTasksForDate(date).find(t => t.id === id);
+  if (!task) { toast('این تسک قبلاً برنامه‌ریزی یا انجام شده است.'); return; }
+  if (task.type === 'once') {
+    // Moving a one-time task preserves its due date and completion history.
+    task.planned = date;
+  } else {
+    // Add an extra occurrence without altering its weekly recurrence days.
+    if (!Array.isArray(task.extraDates)) task.extraDates = [];
+    if (!task.extraDates.includes(date)) task.extraDates.push(date);
+  }
+  closeModal();
+  store();
+  render();
+  toast('«' + task.title + '» به برنامهٔ روز اضافه شد');
 }
 function formField(label, input, full = false) { return `<div class="form-group ${full ? 'full' : ''}"><label>${label}</label>${input}</div>` }
 function openTaskModal(id = null, date = '') {  

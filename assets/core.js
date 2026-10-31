@@ -1,7 +1,7 @@
 // Momentum — privacy-aware personal planner.
 // Application state remains local until encrypted GitHub sync is configured.
 'use strict';
-const DBKEY = 'momentum_student_v1', CFGKEY = 'momentum_git_config_v1', DIRTYKEY = 'momentum_git_dirty_v1', SETTINGS_TAB_KEY = 'momentum_settings_tab_v1';
+const DBKEY = 'momentum_student_v1', CFGKEY = 'momentum_git_config_v1', DIRTYKEY = 'momentum_git_dirty_v1', SETTINGS_TAB_KEY = 'momentum_settings_tab_v1', SOUND_PREF_KEY = 'momentum_completion_sound_v1';
 const DOW = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
 const SATWEEK = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
 const VIEWS = [['dashboard', 'داشبورد', '◫'], ['planner', 'برنامهٔ هفتگی', '▦'], ['tasks', 'تسک‌ها', '☑'], ['progress', 'پیشرفت', '◉'], ['settings', 'تنظیمات', '⚙']];
@@ -19,10 +19,10 @@ const persianParts = d => { const p = Object.fromEntries(PERSIAN_PARTS.formatToP
 function jalaliToISO(s) { if (!s) return ''; const digits = ennum(s).replace(/[-.]/g, '/').trim(); const m = digits.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/); if (!m) return null; const [y, mo, day] = m.slice(1).map(Number); if (y < 1200 || y > 1600 || mo < 1 || mo > 12 || day < 1 || day > 31) return null; const st = new Date(y + 621, 2, 17, 12); let found = null; for (let i = 0; i < 10; i++) { const q = new Date(st); q.setDate(st.getDate() + i); const p = persianParts(q); if (p.y === y && p.m === 1 && p.d === 1) { found = q; break } } if (!found) return null; const offset = (mo <= 7 ? (mo - 1) * 31 : 186 + (mo - 7) * 30) + day - 1; found.setDate(found.getDate() + offset); const z = persianParts(found); return z.y === y && z.m === mo && z.d === day ? isoDate(found) : null }
 function isoToJalali(s) { if (!s) return ''; const p = persianParts(fromIso(s)); return fnum(`${p.y}/${String(p.m).padStart(2, '0')}/${String(p.d).padStart(2, '0')}`) }
 const shortDate = s => s ? isoToJalali(s).slice(5) : 'بدون تاریخ';
-const longDate = s => PERSIAN.format(fromIso(s));
+const longDate = s => { const parts = Object.fromEntries(PERSIAN.formatToParts(fromIso(s)).filter(p => p.type !== 'literal').map(p => [p.type, p.value])); return [parts.weekday, parts.day, parts.month, parts.year].filter(Boolean).join(' '); };
 const dayName = s => DOW[fromIso(s).getDay()];
 const uid = () => crypto?.randomUUID?.() || 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2);
-const mkTask = (title, category, type = 'once', duration = 0, extra = {}) => ({ id: uid(), title, category, type, duration, repeatDays: [], due: '', planned: '', priority: 'normal', notes: '', xp: 20, ...extra });
+const mkTask = (title, category, type = 'once', duration = 0, extra = {}) => ({ id: uid(), title, category, type, duration, repeatDays: [], due: '', planned: '', priority: 'normal', notes: '', xp: 20, extraDates: [], ...extra });
 const mkEvent = (title, day, start, end, kind = 'school') => ({ id: uid(), title, days: [day], start, end, kind, notes: '' });
 function defaultData() {
   return { version: 1, tasks: [], events: [], completions: {}, checkins: {}, lastModified: Date.now(), pristine: true, theme: 'dark', createdOn: today() };
@@ -40,7 +40,7 @@ function refreshStorageBadge() { const el = document.getElementById('storageStat
 
 const isDone = (t, date = selectedDate) => !!data.completions[t.id + '|' + (t.type === 'once' ? 'once' : date)];
 function setDone(t, date, checked) { const k = t.id + '|' + (t.type === 'once' ? 'once' : date); if (checked) data.completions[k] = { at: Date.now(), xp: Number(t.xp) || 20 }; else delete data.completions[k]; store(); render() }
-const appearsOn = (t, date) => t.type === 'daily' || (t.type === 'weekly' && t.repeatDays.includes(fromIso(date).getDay())) || (t.type === 'once' && t.planned === date);
+const appearsOn = (t, date) => (Array.isArray(t.extraDates) && t.extraDates.includes(date)) || t.type === 'daily' || (t.type === 'weekly' && t.repeatDays.includes(fromIso(date).getDay())) || (t.type === 'once' && t.planned === date);
 const dailyTasks = date => data.tasks.filter(t => appearsOn(t, date)).sort((a, b) => ['urgent', 'high', 'normal', 'low'].indexOf(a.priority) - ['urgent', 'high', 'normal', 'low'].indexOf(b.priority));
 const dayEvents = date => data.events.filter(e => e.days.includes(fromIso(date).getDay())).sort((a, b) => a.start.localeCompare(b.start));
 const dueTasks = date => data.tasks.filter(t => t.type === 'once' && !isDone(t, date) && t.due && t.due <= addDays(date, 7)).sort((a, b) => a.due.localeCompare(b.due));
@@ -49,6 +49,7 @@ const level = () => Math.floor(xpTotal() / 200) + 1;
 const xpIntoLevel = () => xpTotal() % 200;
 const badgePriority = p => ({ urgent: 'فوری', high: 'مهم', normal: 'عادی', low: 'کم‌اولویت' }[p] || 'عادی');
 const niceCategory = c => htmlEscape(c || 'سایر');
+const isCompletionSoundEnabled = () => localStorage.getItem(SOUND_PREF_KEY) !== '0';
 const niceDate = s => s ? longDate(s) : 'نامشخص';
 const formatTime = t => fnum(t || '');
 const countDone = (date) => dailyTasks(date).filter(t => isDone(t, date)).length;

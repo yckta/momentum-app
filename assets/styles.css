@@ -1701,3 +1701,109 @@ html,body,button,input,select,textarea,option,small,summary,.heading,.brand h1,.
 .jalali-footer-btn{border:1px solid var(--stroke);border-radius:12px;min-height:44px;background:var(--surface2);color:var(--text);font-weight:700}
 .jalali-footer-btn.primary{background:var(--purpleSoft);color:var(--purple);border-color:transparent}
 @media(max-width:760px){.jalali-overlay{padding:10px;padding-bottom:max(10px,env(safe-area-inset-bottom))}.jalali-dialog{padding:17px;border-radius:22px}.jalali-day{font-size:14px;min-height:40px}}
+
+/* V7.2 — Focused, bounded task lists and completion flow */
+#dateBadge {
+  direction:rtl;
+  unicode-bidi:isolate;
+  text-align:right;
+}
+.task-list-viewport {
+  min-width:0;
+  overflow-y:auto;
+  overscroll-behavior-y:contain;
+  scrollbar-width:thin;
+  scrollbar-color:var(--stroke) transparent;
+  padding-inline-end:5px;
+}
+.dashboard-tasks.task-list-viewport {max-height:min(55vh,500px)}
+.task-board .task-list-viewport {max-height:min(65vh,670px)}
+.task-list-viewport::-webkit-scrollbar {width:6px}
+.task-list-viewport::-webkit-scrollbar-thumb {background:var(--stroke);border-radius:8px}
+.task-add-row {display:flex;justify-content:flex-start;padding:11px 3px 15px;min-height:62px}
+.btn-add-inline {
+  border:1px dashed var(--purple);
+  color:var(--purple);
+  background:var(--purpleSoft);
+  font-size:12px;
+  font-weight:700;
+  min-height:39px;
+  padding:8px 14px;
+  border-radius:11px;
+}
+.btn-add-inline:hover {border-style:solid;filter:none;background:var(--surface3)}
+.task-group-title {
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-size:12px;font-weight:700;color:var(--muted);
+  border-top:1px solid var(--stroke);
+  padding:12px 4px 7px;
+}
+.task-list-viewport .quiet-empty {margin:8px 0}
+.task-list-viewport .task-row:last-child {border-bottom:0}
+.search-control:focus-within {
+  border:1px solid var(--purple)!important;
+  outline:none!important;
+  box-shadow:none!important;
+}
+.search-control input:focus,.search-control input:focus-visible {
+  outline:none!important;
+  outline-offset:0!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+@media (max-width:760px) {
+  .dashboard-tasks.task-list-viewport {max-height:min(52dvh,465px)}
+  .task-board .task-list-viewport {max-height:min(60dvh,560px)}
+  .task-add-row .btn {width:100%;justify-content:center}
+}
+
+/* Schedule an existing unchecked task: compact, searchable selection dialog. */
+.existing-task-picker {max-width:560px}
+.picker-subtitle {margin:6px 0 0;font-size:13px}
+.picker-search {margin:16px 0 12px}
+.picker-search input {width:100%}
+.existing-task-options {
+  display:grid;
+  gap:8px;
+  max-height:min(48vh,430px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:2px 2px 8px;
+}
+.existing-task-option {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  width:100%;
+  min-height:66px;
+  text-align:right;
+  padding:11px 14px;
+  border:1px solid var(--stroke);
+  background:var(--surface2);
+  color:var(--text);
+  border-radius:14px;
+}
+.existing-task-option:hover,.existing-task-option:focus-visible {
+  border-color:var(--purple);
+  background:var(--purpleSoft);
+  outline:none;
+}
+.existing-task-option-content {display:grid;min-width:0;gap:4px}
+.existing-task-option-content strong {font-size:14px;overflow-wrap:anywhere}
+.existing-task-option-content small {font-size:11px;color:var(--muted)}
+.existing-task-option-arrow {color:var(--purple);font-size:23px;flex-shrink:0}
+.existing-task-picker-footer {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:16px;
+  padding-top:15px;
+  border-top:1px solid var(--stroke);
+}
+@media(max-width:760px) {
+  .existing-task-picker-footer .btn {width:100%}
+  .existing-task-options {max-height:min(44dvh,370px)}
+}

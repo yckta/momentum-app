@@ -1,6 +1,32 @@
+// A subtle, locally generated confirmation tone; no downloads or audio assets.
+let completionAudioContext = null;
+function playCompletionSound() {
+  if (!isCompletionSoundEnabled()) return;
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = completionAudioContext || (completionAudioContext = new AudioContextClass());
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const start = ctx.currentTime + 0.008;
+    [660, 880].forEach((frequency, index) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const begin = start + index * 0.085;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(frequency, begin);
+      gain.gain.setValueAtTime(0.0001, begin);
+      gain.gain.exponentialRampToValueAtTime(0.025, begin + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, begin + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(begin);
+      osc.stop(begin + 0.16);
+    });
+  } catch (error) { console.warn('Completion sound is unavailable', error); }
+}
 function onClick(e) {  
 if (handleJalaliCalendarClick(e)) return;
-const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-calendar-open],[data-settings-tab],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
+const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-pick-date],[data-assign-task],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-calendar-open],[data-settings-tab],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
   if (d.closeOverlay && e.target !== n) return;
   if (d.view) { view = d.view; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   if (d.edit) { openTaskModal(d.edit); return }
@@ -9,6 +35,8 @@ const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[da
   if (d.stepWeek) { weekBase = addDays(weekBase, Number(d.stepWeek)); render(); return }
   if ('goToday' in d) { selectedDate = today(); weekBase = shiftWeek(today()); render(); return }
   if ('resetWeek' in d) { weekBase = shiftWeek(today()); render(); return }
+  if (d.pickDate) { openExistingTaskPicker(d.pickDate); return }
+  if (d.assignTask) { addExistingTaskToDate(d.assignTask, d.assignDate); return }
   if (d.newDate) { openTaskModal(null, d.newDate); return }
   if ('newTask' in d) { openTaskModal(); return }
   if (d.filter) { taskFilter = d.filter; render(); return }
@@ -34,8 +62,41 @@ const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[da
   if ('cloudUpload' in d) { forceCloudUpload(); return }
 }
 document.addEventListener('click', onClick);
-document.addEventListener('change', e => { const n = e.target; if (n.id === 'rememberDevice') { onRememberDeviceToggle(n.checked); return; }  if (n.matches('[data-toggle]')) { const t = data.tasks.find(t => t.id === n.dataset.toggle); if (t) setDone(t, n.dataset.date, n.checked) } if (n.id === 'importFile') importBackup(n.files?.[0]); });
-document.addEventListener('input', e => { if (e.target.id === 'taskSearch') { const start = e.target.selectionStart; search = e.target.value; const list = document.getElementById('taskList'); if (list) { const tmp = document.createElement('div'); tmp.innerHTML = renderTasks(); list.innerHTML = tmp.querySelector('#taskList')?.innerHTML || ''; } } });
+document.addEventListener('change', e => {
+  const n = e.target;
+  if (n.id === 'rememberDevice') { onRememberDeviceToggle(n.checked); return; }
+  if (n.id === 'completionSound') { localStorage.setItem(SOUND_PREF_KEY, n.checked ? '1' : '0'); return; }
+  if (n.matches('[data-toggle]')) {
+    const t = data.tasks.find(t => t.id === n.dataset.toggle);
+    if (t) {
+      const scroll = document.querySelector(view === 'tasks' ? '#taskList' : '.dashboard-tasks');
+      const scrollTop = scroll?.scrollTop || 0;
+      if (n.checked) playCompletionSound();
+      setDone(t, n.dataset.date, n.checked);
+      const updatedScroll = document.querySelector(view === 'tasks' ? '#taskList' : '.dashboard-tasks');
+      if (updatedScroll) updatedScroll.scrollTop = scrollTop;
+    }
+    return;
+  }
+  if (n.id === 'importFile') importBackup(n.files?.[0]);
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'existingTaskSearch') {
+    const list = document.getElementById('existingTaskOptions');
+    if (list && activeModal?.type === 'existing-task-picker') list.innerHTML = existingTaskPickerItems(activeModal.date, e.target.value);
+    return;
+  }
+  if (e.target.id !== 'taskSearch') return;
+  search = e.target.value;
+  const list = document.getElementById('taskList');
+  if (list) {
+    const filtered = tasksMatchingFilter();
+    list.innerHTML = renderTaskListContent(filtered);
+    list.scrollTop = 0;
+    const boardCount = document.getElementById('boardCount');
+    if (boardCount) boardCount.textContent = fnum(filtered.length) + ' تسک';
+  }
+});
 document.getElementById('quickAdd').addEventListener('click', () => openTaskModal());
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (calendarState) closeJalaliCalendar(); else closeModal(); } });
 render();
