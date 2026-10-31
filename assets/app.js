@@ -26,7 +26,7 @@ function playCompletionSound() {
 }
 function onClick(e) {  
 if (handleJalaliCalendarClick(e)) return;
-const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-pick-date],[data-assign-task],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-calendar-open],[data-settings-tab],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
+const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[data-step-day],[data-step-week],[data-go-today],[data-reset-week],[data-new-date],[data-pick-date],[data-signature-open],[data-signature-prepare],[data-assign-task],[data-new-task],[data-filter],[data-energy],[data-mood],[data-close-modal],[data-close-overlay],[data-theme],[data-calendar-open],[data-settings-tab],[data-add-event],[data-edit-event],[data-delete-event],[data-export],[data-import],[data-reset],[data-cloud-save],[data-cloud-signup],[data-cloud-login],[data-cloud-pull],[data-cloud-logout],[data-cloud-download],[data-cloud-upload],[data-forget-device]'); if (!n) return; const d = n.dataset;
   if (d.closeOverlay && e.target !== n) return;
   if (d.view) { view = d.view; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); return }
   if (d.edit) { openTaskModal(d.edit); return }
@@ -36,6 +36,8 @@ const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[da
   if ('goToday' in d) { selectedDate = today(); weekBase = shiftWeek(today()); render(); return }
   if ('resetWeek' in d) { weekBase = shiftWeek(today()); render(); return }
   if (d.pickDate) { openExistingTaskPicker(d.pickDate); return }
+  if (d.signatureOpen) { openDailySignature(d.signatureOpen); return }
+  if ('signaturePrepare' in d) { prepareDailySignature(); return }
   if (d.assignTask) { addExistingTaskToDate(d.assignTask, d.assignDate); return }
   if (d.newDate) { openTaskModal(null, d.newDate); return }
   if ('newTask' in d) { openTaskModal(); return }
@@ -64,6 +66,7 @@ const n = e.target.closest('[data-view],[data-edit],[data-del],[data-toggle],[da
 document.addEventListener('click', onClick);
 document.addEventListener('change', e => {
   const n = e.target;
+  if (n.matches('[data-signature-include]')) { onSignatureSelectionChange(n); return; }
   if (n.id === 'rememberDevice') { onRememberDeviceToggle(n.checked); return; }
   if (n.id === 'completionSound') { localStorage.setItem(SOUND_PREF_KEY, n.checked ? '1' : '0'); return; }
   if (n.matches('[data-toggle]')) {

@@ -48,6 +48,7 @@ function renderDashboard() {
       <div class="card metric-card"><span class="metric-icon metric-cyan">◷</span><span class="metric-label">زمان برنامه‌ریزی‌شدهٔ باقی‌مانده</span><strong>${fnum(mins)} <small>دقیقه</small></strong><span class="metric-foot">بر اساس تخمین هر تسک</span></div>
       <div class="card metric-card"><span class="metric-icon metric-amber">✦</span><span class="metric-label">امتیاز کل</span><strong>${fnum(xpTotal())} <small>XP</small></strong><span class="metric-foot">سطح ${fnum(level())}</span></div>
     </section>
+    ${renderSignatureCard(selectedDate)}
     <div class="content-columns">
       <div class="primary-stack">
         <section class="card section-card">
